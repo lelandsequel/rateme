@@ -1,0 +1,203 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model TENANT {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  logo      String?
+  settings  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users        USER[]
+  reps         REP[]
+  teams        TEAM[]
+  sessions    SESSION[]
+  alerts      ALERT[]
+  benchmarks  BENCHMARK[]
+  candidates  CANDIDATE_LIST[]
+  integrations INTEGRATION[]
+  reviewQueue REVIEW_QUEUE[]
+  provenance  PROVENANCE[]
+}
+
+model USER {
+  id           String    @id @default(cuid())
+  email        String
+  name         String
+  avatar       String?
+  role         String    @default("MEMBER")
+  passwordHash String?
+  lastLoginAt  DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  tenantId     String
+  tenant      TENANT    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  teamId      String?
+  team        TEAM?    @relation(fields: [teamId], references: [id])
+  repScores   REP_SCORE[]
+  sessions    SESSION[]
+
+  @@unique([email, tenantId])
+}
+
+model REP {
+  id         String    @id @default(cuid())
+  name       String
+  email      String?
+  avatar     String?
+  title      String?
+  department String?
+  hireDate   DateTime?
+  status    String    @default("ACTIVE")
+  metadata  String?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  tenantId    String
+  tenant     TENANT   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  teamId     String?
+  team       TEAM?   @relation(fields: [teamId], references: [id])
+  scores    REP_SCORE[]
+  sessions  SESSION[]
+
+  @@unique([email, tenantId])
+}
+
+model REP_SCORE {
+  id           String   @id @default(cuid())
+  score        Float
+  confidence   Float
+  dimension   String
+  period      String?
+  calculatedAt DateTime @default(now())
+
+  repId        String
+  rep          REP     @relation(fields: [repId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        USER?   @relation(fields: [userId], references: [id])
+}
+
+model TEAM {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  managerId   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenantId    String
+  tenant      TENANT   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  members    USER[]
+  reps       REP[]
+}
+
+model SESSION {
+  id          String    @id @default(cuid())
+  type        String
+  title       String
+  summary     String?
+  transcript  String?
+  sentiment   Float?
+  entities   String?
+  metadata   String?
+  startedAt   DateTime  @default(now())
+  endedAt     DateTime?
+
+  tenantId    String
+  tenant      TENANT   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  repId       String
+  rep         REP     @relation(fields: [repId], references: [id], onDelete: Cascade)
+  userId     String?
+  user        USER?   @relation(fields: [userId], references: [id])
+  alerts     ALERT[]
+}
+
+model ALERT {
+  id            String   @id @default(cuid())
+  type          String
+  severity     String   @default("INFO")
+  title        String
+  message      String
+  metadata    String?
+  acknowledged Boolean @default(false)
+  createdAt   DateTime  @default(now())
+
+  tenantId     String
+  tenant       TENANT   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sessionId   String?
+  session     SESSION? @relation(fields: [sessionId], references: [id])
+}
+
+model BENCHMARK {
+  id         String   @id @default(cuid())
+  name       String
+  type      String
+  formula   String?
+  thresholds String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  tenantId   String
+  tenant    TENANT   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model CANDIDATE_LIST {
+  id         String   @id @default(cuid())
+  name       String
+  source    String?
+  candidates String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  tenantId   String
+  tenant    TENANT   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model INTEGRATION {
+  id         String    @id @default(cuid())
+  provider   String
+  status    String    @default("INACTIVE")
+  config    String?
+  lastSyncAt DateTime?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  tenantId   String
+  tenant    TENANT   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model REVIEW_QUEUE {
+  id          String    @id @default(cuid())
+  status      String    @default("PENDING")
+  itemType   String
+  itemId    String
+  reviewType String
+  notes     String?
+  reviewedAt DateTime?
+  createdAt  DateTime   @default(now())
+
+  tenantId   String
+  tenant   TENANT   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model PROVENANCE {
+  id        String   @id @default(cuid())
+  source    String
+  sourceId String
+  data     String
+  hash     String?
+  createdAt DateTime  @default(now())
+
+  tenantId  String
+  tenant   TENANT   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
