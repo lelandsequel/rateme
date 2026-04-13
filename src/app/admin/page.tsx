@@ -1,3 +1,7 @@
+export const dynamic = 'force-dynamic'
+
+const HAS_DB = !!process.env.DATABASE_URL;
+
 import { Settings, Users, Building, Bell, Palette, Shield } from "lucide-react";
 
 export default function AdminPage() {

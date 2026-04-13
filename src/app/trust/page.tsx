@@ -1,3 +1,7 @@
+export const dynamic = 'force-dynamic'
+
+const HAS_DB = !!process.env.DATABASE_URL;
+
 import { Shield, Database, Code, Lock, Activity, CheckCircle } from "lucide-react";
 
 export default function TrustPage() {

@@ -1,3 +1,7 @@
+export const dynamic = 'force-dynamic'
+
+const HAS_DB = !!process.env.DATABASE_URL;
+
 import { prisma } from "@/lib/prisma";
 import { AlertTriangle, TrendingUp, TrendingDown, CheckCircle, Users, Target } from "lucide-react";
 

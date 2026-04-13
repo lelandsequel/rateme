@@ -1,3 +1,7 @@
+export const dynamic = 'force-dynamic'
+
+const HAS_DB = !!process.env.DATABASE_URL;
+
 import Link from "next/link";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 
