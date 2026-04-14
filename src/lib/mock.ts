@@ -36,8 +36,8 @@ export const mockReps = [
     hireDate: new Date("2022-03-15"),
     team: { name: "Sales — East" },
     scores: [
-      { id: "s1a", score: 94.2, confidence: 0.91, calculatedAt: new Date(), dimension: "overall" },
-      { id: "s1b", score: 91.8, confidence: 0.89, calculatedAt: new Date(Date.now() - 7 * 86400000), dimension: "overall" },
+      { id: "s1a", score: 94.2, confidence: 0.91, calculatedAt: new Date(), dimension: "overall", period: "This week" },
+      { id: "s1b", score: 91.8, confidence: 0.89, calculatedAt: new Date(Date.now() - 7 * 86400000), dimension: "overall", period: "Last week" },
     ],
     sessions: [
       { id: "sess-1", title: "Discovery Call — Acme Corp", type: "CALL", startedAt: new Date(Date.now() - 3600000), sentiment: 0.78 },
@@ -57,8 +57,8 @@ export const mockReps = [
     hireDate: new Date("2023-01-10"),
     team: { name: "Sales — West" },
     scores: [
-      { id: "s2a", score: 87.5, confidence: 0.84, calculatedAt: new Date(), dimension: "overall" },
-      { id: "s2b", score: 85.0, confidence: 0.82, calculatedAt: new Date(Date.now() - 7 * 86400000), dimension: "overall" },
+      { id: "s2a", score: 87.5, confidence: 0.84, calculatedAt: new Date(), dimension: "overall", period: "This week" },
+      { id: "s2b", score: 85.0, confidence: 0.82, calculatedAt: new Date(Date.now() - 7 * 86400000), dimension: "overall", period: "Last week" },
     ],
     sessions: [
       { id: "sess-3", title: "Intro Call — Beta LLC", type: "CALL", startedAt: new Date(Date.now() - 7200000), sentiment: 0.55 },
@@ -77,8 +77,8 @@ export const mockReps = [
     hireDate: new Date("2021-06-01"),
     team: { name: "Sales — East" },
     scores: [
-      { id: "s3a", score: 91.0, confidence: 0.88, calculatedAt: new Date(), dimension: "overall" },
-      { id: "s3b", score: 90.2, confidence: 0.87, calculatedAt: new Date(Date.now() - 7 * 86400000), dimension: "overall" },
+      { id: "s3a", score: 91.0, confidence: 0.88, calculatedAt: new Date(), dimension: "overall", period: "This week" },
+      { id: "s3b", score: 90.2, confidence: 0.87, calculatedAt: new Date(Date.now() - 7 * 86400000), dimension: "overall", period: "Last week" },
     ],
     sessions: [],
   },
@@ -95,8 +95,8 @@ export const mockReps = [
     hireDate: new Date("2023-07-20"),
     team: { name: "Sales — Central" },
     scores: [
-      { id: "s4a", score: 68.3, confidence: 0.72, calculatedAt: new Date(), dimension: "overall" },
-      { id: "s4b", score: 71.0, confidence: 0.74, calculatedAt: new Date(Date.now() - 7 * 86400000), dimension: "overall" },
+      { id: "s4a", score: 68.3, confidence: 0.72, calculatedAt: new Date(), dimension: "overall", period: "This week" },
+      { id: "s4b", score: 71.0, confidence: 0.74, calculatedAt: new Date(Date.now() - 7 * 86400000), dimension: "overall", period: "Last week" },
     ],
     sessions: [],
   },
@@ -113,8 +113,8 @@ export const mockReps = [
     hireDate: new Date("2022-11-03"),
     team: { name: "Sales — West" },
     scores: [
-      { id: "s5a", score: 79.6, confidence: 0.78, calculatedAt: new Date(), dimension: "overall" },
-      { id: "s5b", score: 77.1, confidence: 0.76, calculatedAt: new Date(Date.now() - 7 * 86400000), dimension: "overall" },
+      { id: "s5a", score: 79.6, confidence: 0.78, calculatedAt: new Date(), dimension: "overall", period: "This week" },
+      { id: "s5b", score: 77.1, confidence: 0.76, calculatedAt: new Date(Date.now() - 7 * 86400000), dimension: "overall", period: "Last week" },
     ],
     sessions: [
       { id: "sess-4", title: "Renewal Discussion", type: "CALL", startedAt: new Date(Date.now() - 1800000), sentiment: 0.70 },
