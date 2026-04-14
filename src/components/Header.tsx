@@ -1,6 +1,7 @@
 "use client";
 
 import { Search, Bell, Settings, CircleUser } from "lucide-react";
+import { Tour } from "@/components/Tour";
 
 export function Header() {
   return (
@@ -18,6 +19,7 @@ export function Header() {
 
       <div className="flex items-center gap-6 ml-8">
         <div className="flex items-center gap-2">
+          <Tour />
           <button className="text-[#c6c5d4] hover:bg-[#2d3449] p-2 rounded-lg transition-colors">
             <Bell size={20} />
           </button>
