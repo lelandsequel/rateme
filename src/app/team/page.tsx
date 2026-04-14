@@ -74,7 +74,7 @@ export default async function TeamPage() {
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#bbc3ff] to-[#001d92] flex items-center justify-center text-xs font-bold text-[#0b1326]">
-                        {rep.name.split(" ").map((n) => n[0]).join("")}
+                        {rep.name.split(" ").map((n: string) => n[0]).join("")}
                       </div>
                       <div>
                         <p className="text-sm font-medium text-[#dae2fd]">{rep.name}</p>
