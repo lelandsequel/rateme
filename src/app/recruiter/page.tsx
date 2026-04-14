@@ -1,12 +1,21 @@
 export const dynamic = 'force-dynamic'
 
-const HAS_DB = !!process.env.DATABASE_URL;
-
+import { HAS_DB } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { UserRoundSearch, Building, ArrowUpRight, GitCompare } from "lucide-react";
 
 async function getCandidates() {
+  if (!HAS_DB) {
+    return [
+      { id: "c1", name: "Alex Rivera", email: "alex.rivera@email.com", title: "Senior Account Executive", source: "LinkedIn", score: 91.5, confidence: 0.88 },
+      { id: "c2", name: "Jordan Lee", email: "jordan.lee@email.com", title: "Account Executive", source: "Referral", score: 87.2, confidence: 0.82 },
+      { id: "c3", name: "Taylor Smith", email: "taylor.smith@email.com", title: "Sales Manager", source: "Indeed", score: 84.8, confidence: 0.79 },
+      { id: "c4", name: "Casey Morgan", email: "casey.morgan@email.com", title: "Enterprise AE", source: "LinkedIn", score: 78.3, confidence: 0.71 },
+      { id: "c5", name: "Riley Johnson", email: "riley.johnson@email.com", title: "Account Executive", source: "Job Board", score: 72.1, confidence: 0.65 },
+    ];
+  }
+
   const tenant = await prisma.tENANT.findUnique({ where: { slug: "demo" } });
   if (!tenant) return [];
 

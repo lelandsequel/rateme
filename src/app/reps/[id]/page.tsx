@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
-const HAS_DB = !!process.env.DATABASE_URL;
-
+import { HAS_DB } from "@/lib/env";
+import { mockReps } from "@/lib/mock";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -14,14 +14,16 @@ interface Props {
 export default async function RepProfilePage({ params }: Props) {
   const { id } = await params;
   
-  const rep = await prisma.rEP.findUnique({
-    where: { id },
-    include: {
-      scores: { orderBy: { calculatedAt: "desc" }, take: 10 },
-      team: true,
-      sessions: { orderBy: { startedAt: "desc" }, take: 5 },
-    },
-  });
+  const rep = HAS_DB
+    ? await prisma.rEP.findUnique({
+        where: { id },
+        include: {
+          scores: { orderBy: { calculatedAt: "desc" }, take: 10 },
+          team: true,
+          sessions: { orderBy: { startedAt: "desc" }, take: 5 },
+        },
+      })
+    : (mockReps.find((r) => r.id === id) ?? mockReps[0]);
 
   if (!rep) {
     notFound();

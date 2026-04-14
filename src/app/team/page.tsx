@@ -1,12 +1,14 @@
 export const dynamic = 'force-dynamic'
 
-const HAS_DB = !!process.env.DATABASE_URL;
-
+import { HAS_DB } from "@/lib/env";
+import { mockTeams } from "@/lib/mock";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { Users, TrendingUp, ArrowUpRight, Building } from "lucide-react";
 
 async function getTeams() {
+  if (!HAS_DB) return mockTeams;
+
   const tenant = await prisma.tENANT.findUnique({ where: { slug: "demo" } });
   if (!tenant) return [];
 
