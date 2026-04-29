@@ -1,5 +1,11 @@
 // Mock data — used when DATABASE_URL is not set.
 // Shapes match what every page actually accesses.
+//
+// Mobile MVP extensions (added 2026-04-27):
+//   - SESSION rows now carry `score` (0..100) + `flags` (string[])
+//   - ALERT rows can carry `scoreDelta` + `driver` for SCORE_DELTA events
+//   - mockReps[].sessions[] flags cover the full coaching-rule surface
+//     (low-sentiment, high-engagement, long-duration, early-wake)
 
 export const mockTeams = [
   {
@@ -40,8 +46,8 @@ export const mockReps = [
       { id: "s1b", score: 91.8, confidence: 0.89, calculatedAt: new Date(Date.now() - 7 * 86400000), dimension: "overall", period: "Last week" },
     ],
     sessions: [
-      { id: "sess-1", title: "Discovery Call — Acme Corp", type: "CALL", startedAt: new Date(Date.now() - 3600000), sentiment: 0.78 },
-      { id: "sess-2", title: "Follow-up Demo", type: "DEMO", startedAt: new Date(Date.now() - 86400000), sentiment: 0.65 },
+      { id: "sess-1", title: "Discovery Call — Acme Corp", type: "CALL", startedAt: new Date(Date.now() - 3600000), sentiment: 0.78, score: 92, flags: ["high-engagement"] },
+      { id: "sess-2", title: "Follow-up Demo", type: "DEMO", startedAt: new Date(Date.now() - 86400000), sentiment: 0.65, score: 88, flags: [] },
     ],
   },
   {
@@ -61,7 +67,8 @@ export const mockReps = [
       { id: "s2b", score: 85.0, confidence: 0.82, calculatedAt: new Date(Date.now() - 7 * 86400000), dimension: "overall", period: "Last week" },
     ],
     sessions: [
-      { id: "sess-3", title: "Intro Call — Beta LLC", type: "CALL", startedAt: new Date(Date.now() - 7200000), sentiment: 0.55 },
+      { id: "sess-3", title: "Intro Call — Beta LLC", type: "CALL", startedAt: new Date(Date.now() - 7200000), sentiment: 0.55, score: 78, flags: [] },
+      { id: "sess-3b", title: "Pricing Conversation — Beta LLC", type: "MEETING", startedAt: new Date(Date.now() - 86400000 * 2), sentiment: 0.32, score: 58, flags: ["low-sentiment"] },
     ],
   },
   {
@@ -80,7 +87,9 @@ export const mockReps = [
       { id: "s3a", score: 91.0, confidence: 0.88, calculatedAt: new Date(), dimension: "overall", period: "This week" },
       { id: "s3b", score: 90.2, confidence: 0.87, calculatedAt: new Date(Date.now() - 7 * 86400000), dimension: "overall", period: "Last week" },
     ],
-    sessions: [],
+    sessions: [
+      { id: "sess-3p", title: "Strategic QBR — Cobalt Industries", type: "MEETING", startedAt: new Date(Date.now() - 86400000 * 1), sentiment: 0.82, score: 90, flags: ["high-engagement"] },
+    ],
   },
   {
     id: "rep-4",
@@ -98,7 +107,13 @@ export const mockReps = [
       { id: "s4a", score: 68.3, confidence: 0.72, calculatedAt: new Date(), dimension: "overall", period: "This week" },
       { id: "s4b", score: 71.0, confidence: 0.74, calculatedAt: new Date(Date.now() - 7 * 86400000), dimension: "overall", period: "Last week" },
     ],
-    sessions: [],
+    // Multiple low-sentiment + early-wake flags so the coaching rule "reduce
+    // talk-ratio" fires for this rep in mock-mode.
+    sessions: [
+      { id: "sess-4a", title: "Cold Call — Apex Foods", type: "CALL", startedAt: new Date(new Date().setHours(6, 30, 0, 0) - 86400000), sentiment: 0.30, score: 48, flags: ["low-sentiment", "early-wake"] },
+      { id: "sess-4b", title: "Renewal Pitch — Lyra Co", type: "CALL", startedAt: new Date(new Date().setHours(6, 45, 0, 0) - 86400000 * 2), sentiment: 0.28, score: 46, flags: ["low-sentiment", "early-wake"] },
+      { id: "sess-4c", title: "Discovery — Mox Health", type: "CALL", startedAt: new Date(Date.now() - 86400000 * 3), sentiment: 0.35, score: 52, flags: ["low-sentiment"] },
+    ],
   },
   {
     id: "rep-5",
@@ -117,7 +132,8 @@ export const mockReps = [
       { id: "s5b", score: 77.1, confidence: 0.76, calculatedAt: new Date(Date.now() - 7 * 86400000), dimension: "overall", period: "Last week" },
     ],
     sessions: [
-      { id: "sess-4", title: "Renewal Discussion", type: "CALL", startedAt: new Date(Date.now() - 1800000), sentiment: 0.70 },
+      { id: "sess-5", title: "Renewal Discussion", type: "CALL", startedAt: new Date(Date.now() - 1800000), sentiment: 0.70, score: 84, flags: [] },
+      { id: "sess-5b", title: "Late-night Sync — EU Counterparty", type: "MEETING", startedAt: new Date(new Date().setHours(21, 30, 0, 0) - 86400000), sentiment: 0.62, score: 70, flags: ["late-night"] },
     ],
   },
 ];
@@ -167,6 +183,57 @@ export const mockAlerts = [
     status: "open",
     createdAt: new Date(Date.now() - 86400000),
     acknowledged: false,
+  },
+  // ---- Score-attributed feed events (mobile MVP) -----------------------
+  // These power the mobile "Feed" tab — type:"SCORE_DELTA" carries
+  // scoreDelta + driver so the client can render "+4 pts — strong close".
+  {
+    id: "alert-5",
+    title: "+4 pts — Strong close rate",
+    message: "Elena Vance: score moved from 90 to 94 (strong close rate).",
+    type: "SCORE_DELTA",
+    severity: "INFO",
+    status: "open",
+    createdAt: new Date(Date.now() - 3600000 * 1),
+    acknowledged: false,
+    scoreDelta: 4.0,
+    driver: "Strong close rate",
+  },
+  {
+    id: "alert-6",
+    title: "-3 pts — Low activity yesterday",
+    message: "James Holloway: score moved from 71 to 68 (low activity yesterday).",
+    type: "SCORE_DELTA",
+    severity: "INFO",
+    status: "open",
+    createdAt: new Date(Date.now() - 3600000 * 4),
+    acknowledged: false,
+    scoreDelta: -3.0,
+    driver: "Low activity yesterday",
+  },
+  {
+    id: "alert-7",
+    title: "-12 pts — Customer sentiment lagging",
+    message: "Marcus Webb: score moved from 87 to 75 (customer sentiment lagging).",
+    type: "SCORE_DELTA",
+    severity: "CRITICAL",
+    status: "open",
+    createdAt: new Date(Date.now() - 3600000 * 12),
+    acknowledged: false,
+    scoreDelta: -12.0,
+    driver: "Customer sentiment lagging",
+  },
+  {
+    id: "alert-8",
+    title: "+2 pts — Steady activity cadence",
+    message: "Sofia Delgado: score moved from 78 to 80 (steady activity cadence).",
+    type: "SCORE_DELTA",
+    severity: "INFO",
+    status: "open",
+    createdAt: new Date(Date.now() - 3600000 * 18),
+    acknowledged: false,
+    scoreDelta: 2.0,
+    driver: "Steady activity cadence",
   },
 ];
 

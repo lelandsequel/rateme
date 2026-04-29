@@ -494,3 +494,152 @@ export function aggregateRepSignals(
     signalsTotal,
   };
 }
+
+// ---------------------------------------------------------------------------
+// scoreSession — mini-QUASAR per session for the mobile Me-tab.
+// ---------------------------------------------------------------------------
+
+/** Per-session scoring inputs. Mirrors SessionLike + minimal rep context. */
+export interface SessionScoringInput {
+  /** Session start. Used for time-of-day flags ("early-wake"). */
+  startedAt: Date | string;
+  /** Optional end timestamp. Used to derive duration in minutes. */
+  endedAt?: Date | string | null;
+  /** Sentiment in [0, 1], or null/NaN when unavailable. */
+  sentiment?: number | null;
+  /** "CALL", "DEMO", "MEETING", or anything else (treated as generic). */
+  type?: string;
+}
+
+/** Minimal rep context — just enough for a tenure adjustment. */
+export interface SessionRepContext {
+  hireDate?: Date | string | null;
+  hiredAt?: Date | string | null;
+}
+
+/** Result of scoring one session. */
+export interface SessionScoreResult {
+  /** Final session score, 0..100. */
+  score: number;
+  /** Discrete band, derived from the same thresholds as rep scoring. */
+  band: RepBand;
+  /** Short, lower-kebab-case flags surfaced to the mobile UI. */
+  flags: string[];
+}
+
+/** Heuristic durations (minutes). */
+const SESSION_DURATION_LONG_MIN = 75;
+const SESSION_DURATION_SHORT_MIN = 5;
+/** Sentiment thresholds for flag emission. */
+const SENTIMENT_LOW_THRESHOLD = 0.4;
+const SENTIMENT_HIGH_THRESHOLD = 0.75;
+/** Local hour considered "early wake" — anything before this. */
+const EARLY_WAKE_HOUR = 7;
+
+/**
+ * Mini-QUASAR scorer for a single session.
+ *
+ * Pure: takes the session + the rep's context, returns a `{score, flags}`.
+ * Component contributions:
+ *   - sentiment (50% weight)  — direct passthrough when present, else 0.5
+ *   - duration  (20% weight)  — sweet-spot bell around 30 minutes
+ *   - type      (15% weight)  — DEMO=1.0, CALL=0.85, MEETING=0.7, other=0.6
+ *   - position  (15% weight)  — lighter penalty for very early/late sessions
+ * Then a small tenure bump (ramp grace) gets added like the rep scorer.
+ */
+export function scoreSession(
+  session: SessionScoringInput,
+  rep: SessionRepContext = {},
+  now: Date = new Date(),
+): SessionScoreResult {
+  const flags: string[] = [];
+
+  // ---- Sentiment ------------------------------------------------------
+  const rawSentiment =
+    typeof session.sentiment === "number" && Number.isFinite(session.sentiment)
+      ? session.sentiment
+      : null;
+  const sentimentComponent =
+    rawSentiment === null ? 0.5 : clamp(rawSentiment, 0, 1);
+
+  if (rawSentiment !== null) {
+    if (rawSentiment <= SENTIMENT_LOW_THRESHOLD) flags.push("low-sentiment");
+    if (rawSentiment >= SENTIMENT_HIGH_THRESHOLD) flags.push("high-engagement");
+  }
+
+  // ---- Duration -------------------------------------------------------
+  const startMs = new Date(session.startedAt).getTime();
+  const endMs = session.endedAt ? new Date(session.endedAt).getTime() : NaN;
+  let durationComponent = 0.6; // unknown → neutral
+  if (Number.isFinite(startMs) && Number.isFinite(endMs) && endMs >= startMs) {
+    const durationMin = (endMs - startMs) / 60_000;
+    if (durationMin >= SESSION_DURATION_LONG_MIN) {
+      flags.push("long-duration");
+      durationComponent = 0.45;
+    } else if (durationMin <= SESSION_DURATION_SHORT_MIN) {
+      flags.push("short-duration");
+      durationComponent = 0.4;
+    } else {
+      // Bell around 30min — peak at 0.95, gently tapering each side.
+      const distFrom30 = Math.abs(durationMin - 30);
+      durationComponent = clamp(0.95 - distFrom30 / 80, 0.5, 0.95);
+    }
+  }
+
+  // ---- Type -----------------------------------------------------------
+  const type = (session.type ?? "").toUpperCase();
+  let typeComponent: number;
+  switch (type) {
+    case "DEMO":
+      typeComponent = 1.0;
+      break;
+    case "CALL":
+      typeComponent = 0.85;
+      break;
+    case "MEETING":
+      typeComponent = 0.7;
+      break;
+    default:
+      typeComponent = 0.6;
+      break;
+  }
+
+  // ---- Position-in-day -----------------------------------------------
+  let positionComponent = 0.85;
+  if (Number.isFinite(startMs)) {
+    const localHour = new Date(startMs).getHours();
+    if (localHour < EARLY_WAKE_HOUR) {
+      flags.push("early-wake");
+      positionComponent = 0.65;
+    } else if (localHour >= 20) {
+      flags.push("late-night");
+      positionComponent = 0.6;
+    } else if (localHour >= 9 && localHour <= 17) {
+      // Prime business-hours bonus.
+      positionComponent = 0.95;
+    }
+  }
+
+  // ---- Weighted aggregate --------------------------------------------
+  const aggregate =
+    sentimentComponent * 0.5 +
+    durationComponent * 0.2 +
+    typeComponent * 0.15 +
+    positionComponent * 0.15;
+
+  // ---- Tenure adjustment (same shape as rep scorer) ------------------
+  const hire = rep.hireDate ?? rep.hiredAt ?? null;
+  const tenureDays =
+    hire == null
+      ? 0
+      : Math.max(
+          0,
+          Math.floor((now.getTime() - new Date(hire).getTime()) / MS_PER_DAY),
+        );
+  const tenureAdjustment = computeTenureAdjustment(tenureDays);
+
+  const score = clamp(Math.round((aggregate + tenureAdjustment) * 100), 0, 100);
+  const band = deriveBand(score);
+
+  return { score, band, flags };
+}

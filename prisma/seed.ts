@@ -18,6 +18,7 @@
 
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcrypt";
+import { scoreSession } from "../src/lib/quasar";
 
 const prisma = new PrismaClient();
 
@@ -68,7 +69,18 @@ function bandToScore(band: RepDef["targetBand"]): number {
   }
 }
 
-const ALERTS = [
+interface AlertDef {
+  id: string;
+  type: string;
+  severity: "INFO" | "WARNING" | "CRITICAL";
+  title: string;
+  message: string;
+  acknowledged?: boolean;
+  scoreDelta?: number;
+  driver?: string;
+}
+
+const ALERTS: AlertDef[] = [
   { id: "alert-1", type: "SCORE_DROP",     severity: "WARNING",  title: "Score Drop Detected",
     message: "James Holloway dropped 2.7 points this week. Coaching recommended." },
   { id: "alert-2", type: "ANOMALY",        severity: "CRITICAL", title: "Anomaly: Call Duration Spike",
@@ -79,7 +91,21 @@ const ALERTS = [
     message: "Sofia Delgado's confidence score fell below 80%. More session data needed." },
   { id: "alert-5", type: "SCORE_DROP",     severity: "INFO",     title: "Team Score Trending Down",
     message: "Sales — Central avg score dipped 1.4 points week-over-week." },
-] as const;
+  // ---- Mobile MVP: SCORE_DELTA feed events ----------------------------
+  // These power the mobile Feed tab. type:"SCORE_DELTA" + scoreDelta + driver.
+  { id: "alert-6", type: "SCORE_DELTA", severity: "INFO",     title: "+4 pts — Strong close rate",
+    message: "Elena Vance: score moved up 4 points (strong close rate).",
+    scoreDelta: 4.0,  driver: "Strong close rate" },
+  { id: "alert-7", type: "SCORE_DELTA", severity: "INFO",     title: "-3 pts — Low activity yesterday",
+    message: "James Holloway: score moved down 3 points (low activity yesterday).",
+    scoreDelta: -3.0, driver: "Low activity yesterday" },
+  { id: "alert-8", type: "SCORE_DELTA", severity: "CRITICAL", title: "-12 pts — Customer sentiment lagging",
+    message: "Marcus Webb: score moved down 12 points (customer sentiment lagging).",
+    scoreDelta: -12.0, driver: "Customer sentiment lagging" },
+  { id: "alert-9", type: "SCORE_DELTA", severity: "INFO",     title: "+2 pts — Steady activity cadence",
+    message: "Sofia Delgado: score moved up 2 points (steady activity cadence).",
+    scoreDelta: 2.0,  driver: "Steady activity cadence" },
+];
 
 const BENCHMARKS = [
   { id: "bench-1", name: "Top Performer Threshold", type: "threshold",
@@ -212,40 +238,58 @@ async function main() {
         : r.targetBand === "watch"    ? 0.5
         : 0.35;
       const sentiment = Math.max(0, Math.min(1, sentimentBase + (Math.random() - 0.5) * 0.3));
+      const startedAt = new Date(now - daysAgo * 86_400_000);
+      const endedAt = new Date(startedAt.getTime() + 3_600_000);
+      const type = sessionTypes[i % sessionTypes.length];
+
+      // Mobile MVP: per-session score + flags so the Me-tab + feed can
+      // render meaningful per-session events from a fresh seed.
+      const sessionResult = scoreSession(
+        { startedAt, endedAt, sentiment, type },
+        { hireDate: r.hireDate },
+        new Date(now),
+      );
+
       await prisma.sESSION.create({
         data: {
           tenantId: TENANT_ID,
           repId: r.id,
-          type: sessionTypes[i % sessionTypes.length],
+          type,
           title: `${sessionTitles[i % sessionTitles.length]} #${i + 1}`,
           sentiment: Math.round(sentiment * 100) / 100,
-          startedAt: new Date(now - daysAgo * 86_400_000),
-          endedAt: new Date(now - daysAgo * 86_400_000 + 3_600_000),
+          startedAt,
+          endedAt,
+          score: sessionResult.score,
+          flags: JSON.stringify(sessionResult.flags),
         },
       });
       sessionCount++;
     }
   }
-  console.log(`[seed] sessions: ${sessionCount}`);
+  console.log(`[seed] sessions: ${sessionCount} (with score+flags)`);
 
   // ---- Alerts ---------------------------------------------------------
   for (const a of ALERTS) {
-    const acknowledged = "acknowledged" in a ? a.acknowledged : false;
+    const acknowledged = a.acknowledged ?? false;
     await prisma.aLERT.upsert({
       where: { id: a.id },
       update: {
         type: a.type, severity: a.severity, title: a.title, message: a.message,
         acknowledged,
+        scoreDelta: a.scoreDelta ?? null,
+        driver: a.driver ?? null,
       },
       create: {
         id: a.id,
         type: a.type, severity: a.severity, title: a.title, message: a.message,
         acknowledged,
+        scoreDelta: a.scoreDelta ?? null,
+        driver: a.driver ?? null,
         tenantId: TENANT_ID,
       },
     });
   }
-  console.log(`[seed] alerts: ${ALERTS.length}`);
+  console.log(`[seed] alerts: ${ALERTS.length} (incl. SCORE_DELTA feed events)`);
 
   // ---- Benchmarks -----------------------------------------------------
   for (const b of BENCHMARKS) {

@@ -112,6 +112,12 @@ model SESSION {
   metadata   String?
   startedAt   DateTime  @default(now())
   endedAt     DateTime?
+  // Mobile MVP extensions: per-session QUASAR result.
+  // `score` is null when uncomputed. `flags` is a JSON-stringified
+  // string[] of short tags ("low-sentiment", "long-duration", etc.) —
+  // SQLite doesn't support String[], so we serialize.
+  score       Float?
+  flags       String?
 
   tenantId    String
   tenant      TENANT   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -131,6 +137,13 @@ model ALERT {
   metadata    String?
   acknowledged Boolean @default(false)
   createdAt   DateTime  @default(now())
+  // Mobile MVP extensions: score-attributed feed event semantics.
+  // `scoreDelta` is the points moved (+/-) when type === "SCORE_DELTA".
+  // `driver` is a short human-readable phrase derived from QUASAR `reasons`
+  // (e.g. "Strong close rate", "Low activity yesterday").
+  // Both nullable so generic alerts (warnings, milestones) keep working.
+  scoreDelta   Float?
+  driver       String?
 
   tenantId     String
   tenant       TENANT   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
