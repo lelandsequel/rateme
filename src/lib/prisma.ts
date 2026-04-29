@@ -1,5 +1,9 @@
 import { PrismaClient } from "@prisma/client";
 
+// Re-export HAS_DB so call sites can do:
+//   import { prisma, HAS_DB } from "@/lib/prisma";
+export { HAS_DB } from "./env";
+
 declare const globalThis: {
   prismaGlobal: PrismaClient;
 } & typeof global;
