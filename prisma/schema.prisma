@@ -26,6 +26,7 @@ model TENANT {
   integrations INTEGRATION[]
   reviewQueue REVIEW_QUEUE[]
   provenance  PROVENANCE[]
+  pushTokens   PUSH_TOKEN[]
 }
 
 model USER {
@@ -45,6 +46,7 @@ model USER {
   team        TEAM?    @relation(fields: [teamId], references: [id])
   repScores   REP_SCORE[]
   sessions    SESSION[]
+  pushTokens   PUSH_TOKEN[]
 
   @@unique([email, tenantId])
 }
@@ -201,6 +203,22 @@ model REVIEW_QUEUE {
 
   tenantId   String
   tenant   TENANT   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model PUSH_TOKEN {
+  id          String    @id @default(cuid())
+  token       String    @unique     // Expo push token, e.g. "ExponentPushToken[...]"
+  platform    String    @default("expo")  // "expo" | "ios" | "android" — extensible
+  createdAt   DateTime  @default(now())
+  lastSeenAt  DateTime  @default(now()) @updatedAt
+
+  userId      String
+  user        USER      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenantId    String
+  tenant      TENANT    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tenantId])
 }
 
 model PROVENANCE {
