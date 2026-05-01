@@ -1,19 +1,23 @@
 // Next.js 16 renamed `middleware.ts` to `proxy.ts`.
 // See: node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/proxy.md
 //
-// We protect every page except /login, /api/auth/*, and Next.js internals.
-// Unauth'd traffic is redirected to /login with `?callbackUrl=` preserved.
+// Auth model:
+//   • Pages — protect everything except /login. Unauth'd → redirect to /login.
+//   • API   — DON'T enforce auth here. Each route calls requireSession(),
+//             which understands BOTH Auth.js cookie sessions (web) AND
+//             Authorization: Bearer JWTs (mobile). Doing the check here
+//             would only see cookies and would 401 every mobile request.
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { HAS_DB } from "@/lib/env";
 
-const PUBLIC_PREFIXES = ["/login", "/api/auth"];
+const PUBLIC_PAGE_PREFIXES = ["/login"];
 
-function isPublic(pathname: string): boolean {
-  return PUBLIC_PREFIXES.some(
-    (p) => pathname === p || pathname.startsWith(p + "/") || pathname === p,
+function isPublicPage(pathname: string): boolean {
+  return PUBLIC_PAGE_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(p + "/"),
   );
 }
 
@@ -26,21 +30,19 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  if (isPublic(pathname)) {
+  // Hand all API routes off to their own handlers — requireSession in each
+  // route enforces auth (cookie OR Bearer). The proxy can't see Bearer.
+  if (pathname.startsWith("/api/")) {
+    return NextResponse.next();
+  }
+
+  if (isPublicPage(pathname)) {
     return NextResponse.next();
   }
 
   const session = await auth();
   if (session?.user) {
     return NextResponse.next();
-  }
-
-  // For API routes, return 401 JSON instead of redirecting.
-  if (pathname.startsWith("/api/")) {
-    return NextResponse.json(
-      { error: "Unauthorized" },
-      { status: 401 },
-    );
   }
 
   const loginUrl = new URL("/login", request.url);
