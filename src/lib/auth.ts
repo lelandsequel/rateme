@@ -2,8 +2,10 @@ import NextAuth, { type DefaultSession } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import "next-auth/jwt";
 import bcrypt from "bcrypt";
+import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { HAS_DB } from "@/lib/env";
+import { verifyMobileToken } from "@/lib/mobile-token";
 
 // ---------------------------------------------------------------------------
 // Module augmentation: tenant + role on the session and JWT.
@@ -124,10 +126,53 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 // ---------------------------------------------------------------------------
 
 /**
+ * The minimal shape callers consume from a "session". Both Auth.js cookie
+ * sessions and our mobile Bearer-token sessions normalize to this.
+ */
+export interface RequiredSession {
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    tenantId: string;
+    role: string;
+  };
+}
+
+/**
  * Returns the current session, throwing a 401 Response if there is none.
+ *
+ * Two auth paths are checked in order:
+ *   1. Authorization: Bearer <jwt>  — used by the mobile client (token
+ *      issued via /api/mobile/login). Bypasses cookies entirely because
+ *      iOS NSURLSession's __Secure-/__Host- cookie handling is unreliable.
+ *   2. Auth.js cookie session — used by the web client.
+ *
  * Always use inside API route handlers.
  */
-export async function requireSession() {
+export async function requireSession(): Promise<RequiredSession> {
+  // 1. Bearer token path (mobile clients).
+  const h = await headers();
+  const authHeader = h.get("authorization");
+  if (authHeader) {
+    const m = authHeader.match(/^Bearer\s+(.+)$/i);
+    if (m) {
+      const payload = await verifyMobileToken(m[1].trim());
+      if (payload) {
+        return {
+          user: {
+            id: payload.sub,
+            email: payload.email,
+            name: payload.name,
+            tenantId: payload.tenantId,
+            role: payload.role,
+          },
+        };
+      }
+    }
+  }
+
+  // 2. Cookie session path (web clients).
   const session = await auth();
   if (!session?.user) {
     throw new Response(
@@ -135,7 +180,15 @@ export async function requireSession() {
       { status: 401, headers: { "Content-Type": "application/json" } },
     );
   }
-  return session;
+  return {
+    user: {
+      id: session.user.id ?? "",
+      email: session.user.email ?? "",
+      name: session.user.name ?? "",
+      tenantId: session.user.tenantId,
+      role: session.user.role,
+    },
+  };
 }
 
 /**
