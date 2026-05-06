@@ -13,9 +13,11 @@ import type { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { HAS_DB } from "@/lib/env";
 
-const PUBLIC_PAGE_PREFIXES = ["/login"];
+const PUBLIC_PAGE_PREFIXES = ["/login", "/signup"];
+const PUBLIC_EXACT = new Set(["/"]);
 
 function isPublicPage(pathname: string): boolean {
+  if (PUBLIC_EXACT.has(pathname)) return true;
   return PUBLIC_PAGE_PREFIXES.some(
     (p) => pathname === p || pathname.startsWith(p + "/"),
   );
