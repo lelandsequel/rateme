@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Rate Me | Enterprise Intelligence",
-  description: "Rep performance intelligence platform",
+  title: "RateMyRep",
+  description: "The rep rating marketplace — your reputation, owned by you.",
 };
 
 export default function RootLayout({

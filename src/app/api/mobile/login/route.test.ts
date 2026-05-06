@@ -1,15 +1,14 @@
 /**
  * Tests for POST /api/mobile/login.
  *
- * Mocking strategy mirrors notifications/register/route.test.ts:
- *  - `@/lib/env` is mocked so HAS_DB can flip per test (mock-mode case).
- *  - `@/lib/prisma` is mocked to a thin in-memory `uSER.findFirst` +
- *    `uSER.update`. We don't run real Prisma.
+ * Mocking strategy:
+ *  - `@/lib/env` is mocked so HAS_DB can flip per test.
+ *  - `@/lib/prisma` is mocked to a thin in-memory `user.findUnique` +
+ *    `user.update`. We don't run real Prisma.
  *  - `bcrypt.compare` is mocked to compare against a known plaintext so
  *    tests don't need a real hash on disk.
- *  - AUTH_SECRET is set on globalThis.process.env at the top of the file
- *    so the real jose-based signMobileToken can run end-to-end. We verify
- *    the resulting JWT is decodable by verifyMobileToken.
+ *  - AUTH_SECRET is set so the real jose-based signMobileToken can run
+ *    end-to-end. We round-trip through verifyMobileToken to confirm.
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
@@ -28,7 +27,6 @@ type UserRow = {
   email: string;
   name: string;
   role: string;
-  tenantId: string;
   passwordHash: string | null;
   lastLoginAt: Date | null;
 };
@@ -37,8 +35,8 @@ const userTable: { rows: UserRow[] } = { rows: [] };
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    uSER: {
-      findFirst: vi.fn(async (args: { where: { email: string } }) => {
+    user: {
+      findUnique: vi.fn(async (args: { where: { email: string } }) => {
         return userTable.rows.find((r) => r.email === args.where.email) ?? null;
       }),
       update: vi.fn(
@@ -52,7 +50,6 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-// Pretend bcrypt.compare succeeds iff plaintext === "rightpass".
 vi.mock("bcrypt", () => ({
   default: {
     compare: vi.fn(async (plain: string) => plain === "rightpass"),
@@ -80,8 +77,7 @@ beforeEach(() => {
       id: "user-1",
       email: "real@user.com",
       name: "Real User",
-      role: "MEMBER",
-      tenantId: "tenant-1",
+      role: "REP",
       passwordHash: "$2b$10$fakehash",
       lastLoginAt: null,
     },
@@ -127,17 +123,14 @@ describe("POST /api/mobile/login", () => {
       id: "user-1",
       email: "real@user.com",
       name: "Real User",
-      tenantId: "tenant-1",
-      role: "MEMBER",
+      role: "REP",
     });
 
-    // Token must round-trip through the verifier.
     const { verifyMobileToken } = await import("@/lib/mobile-token");
     const payload = await verifyMobileToken(body.token);
     expect(payload).not.toBeNull();
     expect(payload?.sub).toBe("user-1");
-    expect(payload?.tenantId).toBe("tenant-1");
-    expect(payload?.role).toBe("MEMBER");
+    expect(payload?.role).toBe("REP");
   });
 
   it("touches lastLoginAt on successful login (DB mode)", async () => {
@@ -148,16 +141,16 @@ describe("POST /api/mobile/login", () => {
 
   it("returns 200 with mock seed creds in mock mode", async () => {
     envState.HAS_DB = false;
-    const res = await callRoute({ email: "admin@demo.com", password: "demo123" });
+    const res = await callRoute({ email: "tj@ratemyrep.com", password: "demo123" });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.user.id).toBe("mock-user-1");
-    expect(body.user.tenantId).toBe("tenant-demo");
+    expect(body.user.role).toBe("SALES_MANAGER");
   });
 
   it("returns 401 with non-seed creds in mock mode", async () => {
     envState.HAS_DB = false;
-    const res = await callRoute({ email: "admin@demo.com", password: "wrong" });
+    const res = await callRoute({ email: "tj@ratemyrep.com", password: "wrong" });
     expect(res.status).toBe(401);
   });
 });

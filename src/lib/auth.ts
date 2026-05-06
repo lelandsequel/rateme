@@ -3,25 +3,28 @@ import Credentials from "next-auth/providers/credentials";
 import "next-auth/jwt";
 import bcrypt from "bcrypt";
 import { headers } from "next/headers";
+
 import { prisma } from "@/lib/prisma";
 import { HAS_DB } from "@/lib/env";
 import { verifyMobileToken } from "@/lib/mobile-token";
 
 // ---------------------------------------------------------------------------
-// Module augmentation: tenant + role on the session and JWT.
+// Module augmentation: role on the session and JWT.
+//
+// Note: RMR has no tenant concept — users own their own data. The `role`
+// field (REP | RATER | SALES_MANAGER | RATER_MANAGER | ADMIN) drives
+// authorization throughout the app.
 // ---------------------------------------------------------------------------
 
 declare module "next-auth" {
   interface Session {
     user: {
       id: string;
-      tenantId: string;
       role: string;
     } & DefaultSession["user"];
   }
   interface User {
     id?: string;
-    tenantId?: string;
     role?: string;
   }
 }
@@ -29,13 +32,12 @@ declare module "next-auth" {
 declare module "next-auth/jwt" {
   interface JWT {
     userId?: string;
-    tenantId?: string;
     role?: string;
   }
 }
 
 // ---------------------------------------------------------------------------
-// NextAuth config (Auth.js v5)
+// NextAuth config (Auth.js v5) — primarily used by the web client.
 // ---------------------------------------------------------------------------
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -58,24 +60,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           typeof credentials?.password === "string" ? credentials.password : null;
         if (!email || !password) return null;
 
-        // Mock-mode demo login: when no DB, accept the seed admin so demos can
-        // exercise the protected app surface without provisioning.
         if (!HAS_DB) {
-          if (email === "admin@demo.com" && password === "demo123") {
+          // Mock-mode demo login — single-shot fallback for offline demos.
+          if (email === "tj@ratemyrep.com" && password === "demo123") {
             return {
               id: "mock-user-1",
-              email: "admin@demo.com",
-              name: "Demo Admin",
-              tenantId: "tenant-demo",
-              role: "ADMIN",
+              email: "tj@ratemyrep.com",
+              name: "TJ",
+              role: "SALES_MANAGER",
             };
           }
           return null;
         }
 
-        const user = await prisma.uSER.findFirst({
-          where: { email },
-        });
+        const user = await prisma.user.findUnique({ where: { email } });
         if (!user || !user.passwordHash) return null;
 
         const ok = await bcrypt.compare(password, user.passwordHash);
@@ -83,7 +81,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         // Touch lastLoginAt — best-effort, swallow errors.
         try {
-          await prisma.uSER.update({
+          await prisma.user.update({
             where: { id: user.id },
             data: { lastLoginAt: new Date() },
           });
@@ -95,7 +93,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           id: user.id,
           email: user.email,
           name: user.name,
-          tenantId: user.tenantId,
           role: user.role,
         };
       },
@@ -105,7 +102,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.userId = (user as { id?: string }).id ?? token.userId;
-        token.tenantId = (user as { tenantId?: string }).tenantId ?? token.tenantId;
         token.role = (user as { role?: string }).role ?? token.role;
       }
       return token;
@@ -113,8 +109,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async session({ session, token }) {
       if (token && session.user) {
         session.user.id = (token.userId as string) ?? "";
-        session.user.tenantId = (token.tenantId as string) ?? "";
-        session.user.role = (token.role as string) ?? "MEMBER";
+        session.user.role = (token.role as string) ?? "REP";
       }
       return session;
     },
@@ -126,15 +121,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 // ---------------------------------------------------------------------------
 
 /**
- * The minimal shape callers consume from a "session". Both Auth.js cookie
- * sessions and our mobile Bearer-token sessions normalize to this.
+ * The minimal shape every API route consumes. Both Auth.js cookie sessions
+ * (web) and Bearer-token sessions (mobile) normalize to this.
  */
 export interface RequiredSession {
   user: {
     id: string;
     email: string;
     name: string;
-    tenantId: string;
     role: string;
   };
 }
@@ -144,14 +138,10 @@ export interface RequiredSession {
  *
  * Two auth paths are checked in order:
  *   1. Authorization: Bearer <jwt>  — used by the mobile client (token
- *      issued via /api/mobile/login). Bypasses cookies entirely because
- *      iOS NSURLSession's __Secure-/__Host- cookie handling is unreliable.
+ *      issued via /api/mobile/login).
  *   2. Auth.js cookie session — used by the web client.
- *
- * Always use inside API route handlers.
  */
 export async function requireSession(): Promise<RequiredSession> {
-  // 1. Bearer token path (mobile clients).
   const h = await headers();
   const authHeader = h.get("authorization");
   if (authHeader) {
@@ -164,7 +154,6 @@ export async function requireSession(): Promise<RequiredSession> {
             id: payload.sub,
             email: payload.email,
             name: payload.name,
-            tenantId: payload.tenantId,
             role: payload.role,
           },
         };
@@ -172,7 +161,6 @@ export async function requireSession(): Promise<RequiredSession> {
     }
   }
 
-  // 2. Cookie session path (web clients).
   const session = await auth();
   if (!session?.user) {
     throw new Response(
@@ -185,31 +173,23 @@ export async function requireSession(): Promise<RequiredSession> {
       id: session.user.id ?? "",
       email: session.user.email ?? "",
       name: session.user.name ?? "",
-      tenantId: session.user.tenantId,
       role: session.user.role,
     },
   };
 }
 
 /**
- * Returns the current user's tenantId, throwing 401/403 as appropriate.
- * If `requestedTenantId` is supplied and differs from the session tenant,
- * throws a 403 to block cross-tenant data access.
+ * Throws 403 if the current user's role isn't in the allowed list.
  */
-export async function requireTenant(requestedTenantId?: string): Promise<string> {
-  const session = await requireSession();
-  const tenantId = session.user.tenantId;
-  if (!tenantId) {
+export async function requireRole(
+  ...allowed: ReadonlyArray<string>
+): Promise<RequiredSession> {
+  const s = await requireSession();
+  if (!allowed.includes(s.user.role)) {
     throw new Response(
-      JSON.stringify({ error: "Forbidden — no tenant" }),
+      JSON.stringify({ error: "Forbidden — role not allowed" }),
       { status: 403, headers: { "Content-Type": "application/json" } },
     );
   }
-  if (requestedTenantId && requestedTenantId !== tenantId) {
-    throw new Response(
-      JSON.stringify({ error: "Forbidden — cross-tenant" }),
-      { status: 403, headers: { "Content-Type": "application/json" } },
-    );
-  }
-  return tenantId;
+  return s;
 }

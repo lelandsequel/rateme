@@ -43,34 +43,30 @@ export async function POST(req: Request) {
       id: string;
       email: string;
       name: string;
-      tenantId: string;
       role: string;
     } | null = null;
 
     if (!HAS_DB) {
-      // Mock-mode parity with the Auth.js authorize callback.
-      if (email === "admin@demo.com" && password === "demo123") {
+      // Mock-mode fallback for offline demos.
+      if (email === "tj@ratemyrep.com" && password === "demo123") {
         resolved = {
           id: "mock-user-1",
-          email: "admin@demo.com",
-          name: "Demo Admin",
-          tenantId: "tenant-demo",
-          role: "ADMIN",
+          email: "tj@ratemyrep.com",
+          name: "TJ",
+          role: "SALES_MANAGER",
         };
       }
     } else {
-      const user = await prisma.uSER.findFirst({ where: { email } });
+      const user = await prisma.user.findUnique({ where: { email } });
       if (user?.passwordHash && (await bcrypt.compare(password, user.passwordHash))) {
         resolved = {
           id: user.id,
           email: user.email,
           name: user.name,
-          tenantId: user.tenantId,
           role: user.role,
         };
-        // Best-effort lastLoginAt touch.
         try {
-          await prisma.uSER.update({
+          await prisma.user.update({
             where: { id: user.id },
             data: { lastLoginAt: new Date() },
           });
@@ -88,7 +84,6 @@ export async function POST(req: Request) {
       sub: resolved.id,
       email: resolved.email,
       name: resolved.name,
-      tenantId: resolved.tenantId,
       role: resolved.role,
     });
 
@@ -98,7 +93,6 @@ export async function POST(req: Request) {
         id: resolved.id,
         email: resolved.email,
         name: resolved.name,
-        tenantId: resolved.tenantId,
         role: resolved.role,
       },
     });

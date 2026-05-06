@@ -33,9 +33,9 @@ vi.mock("@/lib/env", () => ({
 // Auth mock: tests reassign `mockSession` (or set it to null) and the stub
 // uses it to either throw 401 or return.
 let mockSession:
-  | { user: { id: string; tenantId: string; role: string; email?: string; name?: string } }
+  | { user: { id: string; role: string; email?: string; name?: string } }
   | null = {
-    user: { id: "user-1", tenantId: "tenant-1", role: "ADMIN" },
+    user: { id: "user-1", role: "REP" },
   };
 
 vi.mock("@/lib/auth", () => ({
@@ -58,7 +58,6 @@ type Row = {
   token: string;
   platform: string;
   userId: string;
-  tenantId: string;
   createdAt: Date;
   lastSeenAt: Date;
 };
@@ -67,19 +66,18 @@ const prismaState: { rows: Row[]; nextId: number } = { rows: [], nextId: 1 };
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    pUSH_TOKEN: {
+    pushToken: {
       upsert: vi.fn(
         async (args: {
           where: { token: string };
-          create: { token: string; platform: string; userId: string; tenantId: string };
-          update: { platform: string; userId: string; tenantId: string };
+          create: { token: string; platform: string; userId: string };
+          update: { platform: string; userId: string };
         }) => {
           const existing = prismaState.rows.find((r) => r.token === args.where.token);
           const now = new Date();
           if (existing) {
             existing.platform = args.update.platform;
             existing.userId = args.update.userId;
-            existing.tenantId = args.update.tenantId;
             existing.lastSeenAt = now;
             return existing;
           }
@@ -88,7 +86,6 @@ vi.mock("@/lib/prisma", () => ({
             token: args.create.token,
             platform: args.create.platform,
             userId: args.create.userId,
-            tenantId: args.create.tenantId,
             createdAt: now,
             lastSeenAt: now,
           };
@@ -120,7 +117,7 @@ async function callRoute(body: unknown): Promise<Response> {
 
 beforeEach(() => {
   envState.HAS_DB = true;
-  mockSession = { user: { id: "user-1", tenantId: "tenant-1", role: "ADMIN" } };
+  mockSession = { user: { id: "user-1", role: "REP" } };
   prismaState.rows = [];
   prismaState.nextId = 1;
 });
@@ -169,7 +166,6 @@ describe("POST /api/notifications/register", () => {
     expect(body.token).toBe("ExponentPushToken[new123]");
     expect(body.platform).toBe("expo");
     expect(body.userId).toBe("user-1");
-    expect(body.tenantId).toBe("tenant-1");
     expect(body.id).toBe("pt-1");
     expect(prismaState.rows.length).toBe(1);
   });
@@ -182,7 +178,6 @@ describe("POST /api/notifications/register", () => {
       token: "ExponentPushToken[same]",
       platform: "expo",
       userId: "user-1",
-      tenantId: "tenant-1",
       createdAt: seededAt,
       lastSeenAt: seededAt,
     });
@@ -208,7 +203,6 @@ describe("POST /api/notifications/register", () => {
       token: "ExponentPushToken[handoff]",
       platform: "expo",
       userId: "user-other",
-      tenantId: "tenant-other",
       createdAt: new Date("2026-04-25T00:00:00Z"),
       lastSeenAt: new Date("2026-04-25T00:00:00Z"),
     });
@@ -221,7 +215,6 @@ describe("POST /api/notifications/register", () => {
     const body = await res.json();
     expect(body.id).toBe("pt-handoff");
     expect(body.userId).toBe("user-1");
-    expect(body.tenantId).toBe("tenant-1");
     // Still a single row — upsert reassigned, didn't duplicate.
     expect(prismaState.rows.length).toBe(1);
   });

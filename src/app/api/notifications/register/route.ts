@@ -5,7 +5,7 @@
  * mobile companion (lelandsequel/ratememobile) on app start.
  *
  * Body:   { token: string, platform?: "expo"|"ios"|"android" }
- * Auth:   required (next-auth session); userId + tenantId derive from JWT.
+ * Auth:   required (next-auth session OR mobile Bearer token).
  * Mock:   HAS_DB=false → 503 (no place to persist; mobile swallows).
  *
  * Behavior: upsert by token. If the token already exists under a DIFFERENT
@@ -29,7 +29,6 @@ export async function POST(request: Request) {
     // backend's storage mode.
     const session = await requireSession();
     const userId = session.user.id;
-    const tenantId = session.user.tenantId;
 
     let body: unknown;
     try {
@@ -83,18 +82,16 @@ export async function POST(request: Request) {
     // Upsert by token. If the token already exists under any user (same or
     // different), update lastSeenAt + reassign ownership to the current
     // session user/tenant. Otherwise create a fresh row.
-    const row = await prisma.pUSH_TOKEN.upsert({
+    const row = await prisma.pushToken.upsert({
       where: { token },
       create: {
         token,
         platform,
         userId,
-        tenantId,
       },
       update: {
         platform,
         userId,
-        tenantId,
         // lastSeenAt updates automatically via @updatedAt on any write.
       },
     });
@@ -104,7 +101,6 @@ export async function POST(request: Request) {
       token: row.token,
       platform: row.platform,
       userId: row.userId,
-      tenantId: row.tenantId,
       lastSeenAt: row.lastSeenAt,
     };
   });

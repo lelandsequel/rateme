@@ -1,3 +1,11 @@
+// RMR (Rate My Rep) — third-party rating marketplace.
+//
+// Core idea: Raters (customers/buyers) rate Reps (sales reps). Data is
+// owned by the individual, portable across employers. Managers can view
+// teams of either Reps OR Raters. Connections gate ratings — you can
+// only rate a Rep you're connected to. No free text — only structured
+// 1-5 scores + a binary "would-take-call-again" flag.
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,228 +16,320 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-model TENANT {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String   @unique
-  logo      String?
-  settings  String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+// ---------------------------------------------------------------------------
+// Identity
+// ---------------------------------------------------------------------------
 
-  users        USER[]
-  reps         REP[]
-  teams        TEAM[]
-  sessions    SESSION[]
-  alerts      ALERT[]
-  benchmarks  BENCHMARK[]
-  candidates  CANDIDATE_LIST[]
-  integrations INTEGRATION[]
-  reviewQueue REVIEW_QUEUE[]
-  provenance  PROVENANCE[]
-  pushTokens   PUSH_TOKEN[]
+enum Role {
+  REP             // a sales rep being rated
+  RATER           // a customer/buyer who rates reps
+  SALES_MANAGER   // manages a team of reps
+  RATER_MANAGER   // manages a team of raters
+  ADMIN           // platform admin
 }
 
-model USER {
-  id           String    @id @default(cuid())
-  email        String
-  name         String
-  avatar       String?
-  role         String    @default("MEMBER")
-  passwordHash String?
-  lastLoginAt  DateTime?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-
-  tenantId     String
-  tenant      TENANT    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  teamId      String?
-  team        TEAM?    @relation(fields: [teamId], references: [id])
-  repScores   REP_SCORE[]
-  sessions    SESSION[]
-  pushTokens   PUSH_TOKEN[]
-
-  @@unique([email, tenantId])
+enum USState {
+  AL
+  AK
+  AZ
+  AR
+  CA
+  CO
+  CT
+  DE
+  FL
+  GA
+  HI
+  ID
+  IL
+  IN
+  IA
+  KS
+  KY
+  LA
+  ME
+  MD
+  MA
+  MI
+  MN
+  MS
+  MO
+  MT
+  NE
+  NV
+  NH
+  NJ
+  NM
+  NY
+  NC
+  ND
+  OH
+  OK
+  OR
+  PA
+  RI
+  SC
+  SD
+  TN
+  TX
+  UT
+  VT
+  VA
+  WA
+  WV
+  WI
+  WY
+  DC
 }
 
-model REP {
-  id         String    @id @default(cuid())
-  name       String
-  email      String?
-  avatar     String?
-  title      String?
-  department String?
-  hireDate   DateTime?
-  status    String    @default("ACTIVE")
-  metadata  String?
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
-
-  tenantId    String
-  tenant     TENANT   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  teamId     String?
-  team       TEAM?   @relation(fields: [teamId], references: [id])
-  scores    REP_SCORE[]
-  sessions  SESSION[]
-
-  @@unique([email, tenantId])
-}
-
-model REP_SCORE {
-  id           String   @id @default(cuid())
-  score        Float
-  confidence   Float
-  dimension   String
-  period      String?
-  calculatedAt DateTime @default(now())
-
-  repId        String
-  rep          REP     @relation(fields: [repId], references: [id], onDelete: Cascade)
-  userId      String?
-  user        USER?   @relation(fields: [userId], references: [id])
-}
-
-model TEAM {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  managerId   String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  tenantId    String
-  tenant      TENANT   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-
-  members    USER[]
-  reps       REP[]
-}
-
-model SESSION {
-  id          String    @id @default(cuid())
-  type        String
-  title       String
-  summary     String?
-  transcript  String?
-  sentiment   Float?
-  entities   String?
-  metadata   String?
-  startedAt   DateTime  @default(now())
-  endedAt     DateTime?
-  // Mobile MVP extensions: per-session QUASAR result.
-  // `score` is null when uncomputed. `flags` is a JSON-stringified
-  // string[] of short tags ("low-sentiment", "long-duration", etc.) —
-  // SQLite doesn't support String[], so we serialize.
-  score       Float?
-  flags       String?
-
-  tenantId    String
-  tenant      TENANT   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  repId       String
-  rep         REP     @relation(fields: [repId], references: [id], onDelete: Cascade)
-  userId     String?
-  user        USER?   @relation(fields: [userId], references: [id])
-  alerts     ALERT[]
-}
-
-model ALERT {
+model User {
   id            String   @id @default(cuid())
-  type          String
-  severity     String   @default("INFO")
-  title        String
-  message      String
-  metadata    String?
-  acknowledged Boolean @default(false)
-  createdAt   DateTime  @default(now())
-  // Mobile MVP extensions: score-attributed feed event semantics.
-  // `scoreDelta` is the points moved (+/-) when type === "SCORE_DELTA".
-  // `driver` is a short human-readable phrase derived from QUASAR `reasons`
-  // (e.g. "Strong close rate", "Low activity yesterday").
-  // Both nullable so generic alerts (warnings, milestones) keep working.
-  scoreDelta   Float?
-  driver       String?
+  email         String   @unique
+  name          String
+  passwordHash  String
+  role          Role
+  state         USState
+  avatarUrl     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  lastLoginAt   DateTime?
 
-  tenantId     String
-  tenant       TENANT   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  sessionId   String?
-  session     SESSION? @relation(fields: [sessionId], references: [id])
+  // 1:1 child profile rows (only one populated per user, matching role).
+  repProfile     RepProfile?
+  raterProfile   RaterProfile?
+  managerProfile ManagerProfile?
+
+  // Connections this user is involved in (either side).
+  repConnections   Connection[] @relation("ConnectionRep")
+  raterConnections Connection[] @relation("ConnectionRater")
+
+  // Ratings authored or received.
+  ratingsGiven     Rating[] @relation("RatingFromRater")
+  ratingsReceived  Rating[] @relation("RatingForRep")
+
+  // Rating requests this user initiated or is the target rep of.
+  requestsInitiated RatingRequest[] @relation("RequestInitiator")
+  requestsAsTarget  RatingRequest[] @relation("RequestForRep")
+
+  // Push notification tokens (one user, many devices).
+  pushTokens PushToken[]
+
+  // Manager → team member assignments. A manager has many teamMembers;
+  // a member has at most one team manager active at a time.
+  managedMemberships  TeamMembership[] @relation("MembershipManager")
+  membershipAsMember  TeamMembership?  @relation("MembershipMember")
+
+  @@index([role])
+  @@index([state])
 }
 
-model BENCHMARK {
-  id         String   @id @default(cuid())
-  name       String
-  type      String
-  formula   String?
-  thresholds String?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+// Sales rep profile. Public fields visible to any rater.
+model RepProfile {
+  userId     String   @id
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title      String   // e.g. "Senior Account Executive"
+  company    String   // current employer (portable — changing is allowed)
+  industryId String
+  industry   Industry @relation(fields: [industryId], references: [id])
+  metroArea  String?  // e.g. "Houston, TX" — free-form for now
+  bio        String?  // OPTIONAL — short blurb, capped client-side at 280 chars
 
-  tenantId   String
-  tenant    TENANT   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  @@index([industryId])
+  @@index([company])
 }
 
-model CANDIDATE_LIST {
-  id         String   @id @default(cuid())
-  name       String
-  source    String?
-  candidates String?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+// Rater profile. Privacy: ONLY title + company are publicly visible.
+// Email + name are NOT shown to reps; reps see "Title @ Company" only.
+model RaterProfile {
+  userId     String   @id
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title      String   // PUBLIC — e.g. "VP of Procurement"
+  company    String   // PUBLIC
+  industryId String
+  industry   Industry @relation(fields: [industryId], references: [id])
 
-  tenantId   String
-  tenant    TENANT   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  @@index([industryId])
+  @@index([company])
 }
 
-model INTEGRATION {
-  id         String    @id @default(cuid())
-  provider   String
-  status    String    @default("INACTIVE")
-  config    String?
-  lastSyncAt DateTime?
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-
-  tenantId   String
-  tenant    TENANT   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+enum ManagerType {
+  REP_MANAGER     // manages a team of REPs (a sales manager)
+  RATER_MANAGER   // manages a team of RATERs
 }
 
-model REVIEW_QUEUE {
+model ManagerProfile {
+  userId     String      @id
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  managesType ManagerType
+  company    String      // their employer
+
+  @@index([company])
+}
+
+// Industry lookup — curated list, seeded. RepProfile + RaterProfile both FK here.
+model Industry {
+  id           String         @id @default(cuid())
+  name         String         @unique
+  slug         String         @unique
+  reps         RepProfile[]
+  raters       RaterProfile[]
+
+  @@index([slug])
+}
+
+// ---------------------------------------------------------------------------
+// Connections — required before a rater can rate a rep.
+// ---------------------------------------------------------------------------
+
+enum ConnectionStatus {
+  PENDING       // awaiting confirmation by the OTHER side
+  ACCEPTED
+  REJECTED
+  DISCONNECTED  // was accepted, then either side disconnected
+}
+
+enum ConnectionInitiator {
+  REP
+  RATER
+}
+
+model Connection {
+  id           String              @id @default(cuid())
+  repUserId    String
+  rep          User                @relation("ConnectionRep", fields: [repUserId], references: [id], onDelete: Cascade)
+  raterUserId  String
+  rater        User                @relation("ConnectionRater", fields: [raterUserId], references: [id], onDelete: Cascade)
+  initiatedBy  ConnectionInitiator
+  status       ConnectionStatus    @default(PENDING)
+  requestedAt  DateTime            @default(now())
+  respondedAt  DateTime?
+  ratings      Rating[]
+
+  @@unique([repUserId, raterUserId])
+  @@index([repUserId, status])
+  @@index([raterUserId, status])
+}
+
+// ---------------------------------------------------------------------------
+// Ratings — structured only. NO free text per spec.
+// ---------------------------------------------------------------------------
+
+model Rating {
+  id                  String     @id @default(cuid())
+  connectionId        String
+  connection          Connection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  // Denormalized for fast leaderboards / status calcs.
+  repUserId           String
+  rep                 User       @relation("RatingForRep", fields: [repUserId], references: [id], onDelete: Cascade)
+  raterUserId         String
+  rater               User       @relation("RatingFromRater", fields: [raterUserId], references: [id], onDelete: Cascade)
+
+  // The five 1-5 dimensions. Stored as Int with CHECK in app code.
+  responsiveness      Int
+  productKnowledge    Int
+  followThrough       Int
+  listeningNeedsFit   Int
+  trustIntegrity      Int
+
+  // Binary brutal-honesty flag.
+  takeCallAgain       Boolean
+
+  // Optional source: was this rating fulfilled via a RatingRequest?
+  ratingRequestId     String?    @unique
+  ratingRequest       RatingRequest? @relation(fields: [ratingRequestId], references: [id])
+
+  createdAt           DateTime   @default(now())
+
+  @@index([repUserId, createdAt])
+  @@index([raterUserId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Rating Requests — explicit asks for a rating, with rate-limiting.
+//
+// Two flavors:
+//   ONE_TIME   — rep sends a one-shot request to a NON-USER email; if the
+//                rater accepts, they sign up + connect + rate in one flow.
+//   ON_BEHALF  — manager requests a rating on behalf of a rep, targeting
+//                an existing connected rater. Limit: one per (rep, rater)
+//                pair every 30 days.
+// ---------------------------------------------------------------------------
+
+enum RatingRequestType {
+  ONE_TIME
+  ON_BEHALF
+}
+
+enum RatingRequestStatus {
+  PENDING
+  COMPLETED
+  EXPIRED
+  CANCELLED
+}
+
+model RatingRequest {
+  id                String              @id @default(cuid())
+  type              RatingRequestType
+  status            RatingRequestStatus @default(PENDING)
+
+  forRepUserId      String
+  forRep            User                @relation("RequestForRep", fields: [forRepUserId], references: [id], onDelete: Cascade)
+
+  // Who fired the request. For ONE_TIME this is usually the rep themselves;
+  // for ON_BEHALF it's a SALES_MANAGER user.
+  initiatedByUserId String
+  initiatedBy       User                @relation("RequestInitiator", fields: [initiatedByUserId], references: [id], onDelete: Cascade)
+
+  // For ONE_TIME: the email we sent the invite to (may not yet be a user).
+  // For ON_BEHALF: null (target is the connected rater).
+  toEmail           String?
+  toRaterUserId     String?  // populated when ON_BEHALF or after a ONE_TIME signup links
+
+  expiresAt         DateTime
+  createdAt         DateTime            @default(now())
+  completedAt       DateTime?
+
+  rating            Rating?
+
+  @@index([forRepUserId, status])
+  @@index([toEmail])
+}
+
+// ---------------------------------------------------------------------------
+// Manager team membership.
+//   - SALES_MANAGER → many REP members
+//   - RATER_MANAGER → many RATER members
+// One membership row per (manager, member) pair. A member has at most one
+// active membership; the @@unique enforces it via the optional active flag.
+// ---------------------------------------------------------------------------
+
+model TeamMembership {
+  id          String   @id @default(cuid())
+  managerId   String
+  manager     User     @relation("MembershipManager", fields: [managerId], references: [id], onDelete: Cascade)
+  memberId    String   @unique
+  member      User     @relation("MembershipMember", fields: [memberId], references: [id], onDelete: Cascade)
+  invitedAt   DateTime @default(now())
+  acceptedAt  DateTime?
+  endedAt     DateTime?
+
+  @@index([managerId])
+}
+
+// ---------------------------------------------------------------------------
+// Push tokens (Expo) — carried over from the prior schema.
+// ---------------------------------------------------------------------------
+
+model PushToken {
   id          String    @id @default(cuid())
-  status      String    @default("PENDING")
-  itemType   String
-  itemId    String
-  reviewType String
-  notes     String?
-  reviewedAt DateTime?
-  createdAt  DateTime   @default(now())
-
-  tenantId   String
-  tenant   TENANT   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-}
-
-model PUSH_TOKEN {
-  id          String    @id @default(cuid())
-  token       String    @unique     // Expo push token, e.g. "ExponentPushToken[...]"
-  platform    String    @default("expo")  // "expo" | "ios" | "android" — extensible
+  token       String    @unique
+  platform    String    @default("expo")
   createdAt   DateTime  @default(now())
   lastSeenAt  DateTime  @default(now()) @updatedAt
 
   userId      String
-  user        USER      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tenantId    String
-  tenant      TENANT    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
-  @@index([tenantId])
-}
-
-model PROVENANCE {
-  id        String   @id @default(cuid())
-  source    String
-  sourceId String
-  data     String
-  hash     String?
-  createdAt DateTime  @default(now())
-
-  tenantId  String
-  tenant   TENANT   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }

@@ -15,7 +15,6 @@ export interface MobileTokenPayload {
   sub: string; // userId
   email: string;
   name: string;
-  tenantId: string;
   role: string;
 }
 
@@ -46,7 +45,6 @@ export async function verifyMobileToken(
     if (
       typeof payload.sub !== "string" ||
       typeof payload.email !== "string" ||
-      typeof payload.tenantId !== "string" ||
       typeof payload.role !== "string"
     ) {
       return null;
@@ -55,7 +53,6 @@ export async function verifyMobileToken(
       sub: payload.sub,
       email: payload.email,
       name: typeof payload.name === "string" ? payload.name : "",
-      tenantId: payload.tenantId,
       role: payload.role,
     };
   } catch {
