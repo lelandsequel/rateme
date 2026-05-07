@@ -14,4 +14,14 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  test: {
+    // Don't pick up stale test files inside the agent worktrees — those
+    // are separate copies of the repo, not part of the live build.
+    exclude: [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/.next/**",
+      "**/.claude/**",
+    ],
+  },
 });
