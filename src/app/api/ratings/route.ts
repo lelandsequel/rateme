@@ -24,6 +24,7 @@ import {
 import { handle } from "@/lib/api";
 import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { notifyFavoritesOfRating } from "@/lib/notify-favorites";
 
 interface SubmitBody {
   repUserId?: unknown;
@@ -159,6 +160,22 @@ export async function POST(req: Request) {
         },
       });
     }
+
+    // Fan out to anyone who's favorited this rep. Fire-and-forget — failures
+    // here MUST NOT fail the rating create. We compute the overall score
+    // from the just-submitted dimensions so we don't need to re-aggregate.
+    const overall =
+      (responsiveness +
+        productKnowledge +
+        followThrough +
+        listeningNeedsFit +
+        trustIntegrity) /
+      5;
+    void notifyFavoritesOfRating({
+      ratingId: rating.id,
+      repUserId,
+      overall: Math.round(overall * 10) / 10,
+    });
 
     return Response.json({ rating });
   });

@@ -21,6 +21,7 @@ const NAV_BY_ROLE: Record<string, NavLink[]> = {
   RATER: [
     { href: "/home", label: "Home" },
     { href: "/reps", label: "Browse Reps" },
+    { href: "/favorites", label: "Favorites" },
     { href: "/connections", label: "Connections" },
     { href: "/team", label: "Team" },
   ],

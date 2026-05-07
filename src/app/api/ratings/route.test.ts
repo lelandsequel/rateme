@@ -56,12 +56,47 @@ interface RRRow {
   completedAt: Date | null;
 }
 
+interface FavoriteRow {
+  id: string;
+  raterUserId: string;
+  repUserId: string;
+  createdAt: Date;
+}
+
+interface UserRow {
+  id: string;
+  name: string;
+  email: string;
+  pushTokens: Array<{ token: string }>;
+}
+
+interface NotifLogRow {
+  id: string;
+  userId: string;
+  kind: string;
+  payload: string;
+  pushSent: boolean;
+  emailSent: boolean;
+  createdAt: Date;
+}
+
 const state: {
   conns: ConnRow[];
   ratings: RatingRow[];
   ratingRequests: RRRow[];
+  favorites: FavoriteRow[];
+  users: UserRow[];
+  notificationLogs: NotifLogRow[];
   nextId: number;
-} = { conns: [], ratings: [], ratingRequests: [], nextId: 1 };
+} = {
+  conns: [],
+  ratings: [],
+  ratingRequests: [],
+  favorites: [],
+  users: [],
+  notificationLogs: [],
+  nextId: 1,
+};
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -113,6 +148,52 @@ vi.mock("@/lib/prisma", () => ({
         },
       ),
     },
+    favorite: {
+      findMany: vi.fn(
+        async (args: {
+          where: { repUserId: string };
+          select?: unknown;
+        }) => {
+          return state.favorites
+            .filter((f) => f.repUserId === args.where.repUserId)
+            .map((f) => ({ raterUserId: f.raterUserId }));
+        },
+      ),
+    },
+    user: {
+      findUnique: vi.fn(async (args: { where: { id: string } }) => {
+        return state.users.find((u) => u.id === args.where.id) ?? null;
+      }),
+      findMany: vi.fn(
+        async (args: {
+          where: { id: { in: string[] } };
+          select?: unknown;
+        }) => {
+          return state.users
+            .filter((u) => args.where.id.in.includes(u.id))
+            .map((u) => ({
+              id: u.id,
+              email: u.email,
+              pushTokens: u.pushTokens,
+            }));
+        },
+      ),
+    },
+    notificationLog: {
+      create: vi.fn(
+        async (args: {
+          data: Omit<NotifLogRow, "id" | "createdAt"> & { createdAt?: Date };
+        }) => {
+          const row: NotifLogRow = {
+            id: `nl-${state.nextId++}`,
+            createdAt: args.data.createdAt ?? new Date(),
+            ...args.data,
+          };
+          state.notificationLogs.push(row);
+          return row;
+        },
+      ),
+    },
   },
 }));
 
@@ -146,7 +227,31 @@ beforeEach(() => {
   ];
   state.ratings = [];
   state.ratingRequests = [];
+  state.favorites = [];
+  state.users = [
+    {
+      id: "rep-1",
+      name: "Diego",
+      email: "diego@example.com",
+      pushTokens: [],
+    },
+    {
+      id: "watcher-1",
+      name: "Watcher One",
+      email: "watcher1@example.com",
+      pushTokens: [{ token: "ExponentPushToken[w1]" }],
+    },
+    {
+      id: "watcher-2",
+      name: "Watcher Two",
+      email: "watcher2@example.com",
+      pushTokens: [],
+    },
+  ];
+  state.notificationLogs = [];
   state.nextId = 1;
+  // Stub fetch so push/email best-effort calls don't reach the network.
+  globalThis.fetch = vi.fn(async () => new Response("ok", { status: 200 })) as unknown as typeof fetch;
 });
 
 describe("POST /api/ratings — ratingRequest side-effect", () => {
@@ -275,5 +380,110 @@ describe("POST /api/ratings — ratingRequest side-effect", () => {
     expect(res.status).toBe(200);
     expect(state.ratingRequests[0].toRaterUserId).toBe("rater-1");
     expect(state.ratingRequests[0].status).toBe("COMPLETED");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Favorite-driven notification fan-out.
+//
+// On rating-create, every Rater whose Favorite points at the freshly-rated
+// Rep should get a NotificationLog row. Push + email are best-effort and
+// MUST NOT block or fail the rating-create response.
+// ---------------------------------------------------------------------------
+
+async function flushAsync(): Promise<void> {
+  // The fan-out is fired with `void promise`. Yield twice to let microtasks
+  // settle (await fetch + await notificationLog.create).
+  for (let i = 0; i < 5; i++) {
+    await new Promise((r) => setImmediate(r));
+  }
+}
+
+describe("POST /api/ratings — favorite notification fan-out", () => {
+  it("creates a NotificationLog row for each Rater favoriting this Rep", async () => {
+    state.favorites.push(
+      { id: "fav-1", raterUserId: "watcher-1", repUserId: "rep-1", createdAt: new Date() },
+      { id: "fav-2", raterUserId: "watcher-2", repUserId: "rep-1", createdAt: new Date() },
+    );
+    const res = await callRoute(validBody);
+    expect(res.status).toBe(200);
+    await flushAsync();
+    expect(state.notificationLogs).toHaveLength(2);
+    const recipients = state.notificationLogs.map((n) => n.userId).sort();
+    expect(recipients).toEqual(["watcher-1", "watcher-2"]);
+    for (const log of state.notificationLogs) {
+      expect(log.kind).toBe("favorite-rating");
+      const payload = JSON.parse(log.payload);
+      expect(payload.repUserId).toBe("rep-1");
+      expect(payload.repName).toBe("Diego");
+      // Privacy: payload must NOT include the rater's identity.
+      expect(JSON.stringify(payload)).not.toContain("rater-1");
+    }
+  });
+
+  it("attempts an Expo push only when the watcher has push tokens", async () => {
+    state.favorites.push(
+      { id: "fav-1", raterUserId: "watcher-1", repUserId: "rep-1", createdAt: new Date() },
+      { id: "fav-2", raterUserId: "watcher-2", repUserId: "rep-1", createdAt: new Date() },
+    );
+    const res = await callRoute(validBody);
+    expect(res.status).toBe(200);
+    await flushAsync();
+    const fetchMock = globalThis.fetch as unknown as ReturnType<typeof vi.fn>;
+    const pushCalls = fetchMock.mock.calls.filter(
+      (c) => typeof c[0] === "string" && (c[0] as string).includes("exp.host"),
+    );
+    // watcher-1 has a token → 1 push call; watcher-2 has none → 0.
+    expect(pushCalls).toHaveLength(1);
+    const w1Log = state.notificationLogs.find((n) => n.userId === "watcher-1");
+    const w2Log = state.notificationLogs.find((n) => n.userId === "watcher-2");
+    expect(w1Log?.pushSent).toBe(true);
+    expect(w2Log?.pushSent).toBe(false);
+  });
+
+  it("does NOT include the rater's identity in the push body (privacy)", async () => {
+    state.favorites.push({
+      id: "fav-1",
+      raterUserId: "watcher-1",
+      repUserId: "rep-1",
+      createdAt: new Date(),
+    });
+    const res = await callRoute(validBody);
+    expect(res.status).toBe(200);
+    await flushAsync();
+    const fetchMock = globalThis.fetch as unknown as ReturnType<typeof vi.fn>;
+    const pushCall = fetchMock.mock.calls.find(
+      (c) => typeof c[0] === "string" && (c[0] as string).includes("exp.host"),
+    );
+    expect(pushCall).toBeDefined();
+    const reqInit = pushCall?.[1] as RequestInit | undefined;
+    const body = typeof reqInit?.body === "string" ? reqInit.body : "";
+    expect(body).toContain("Diego"); // rep IS named
+    expect(body).not.toContain("rater-1"); // rater id is not
+  });
+
+  it("creates no logs when the rep has no favoriting raters", async () => {
+    const res = await callRoute(validBody);
+    expect(res.status).toBe(200);
+    await flushAsync();
+    expect(state.notificationLogs).toHaveLength(0);
+  });
+
+  it("still returns the rating successfully when fetch (push/email) throws", async () => {
+    state.favorites.push({
+      id: "fav-1",
+      raterUserId: "watcher-1",
+      repUserId: "rep-1",
+      createdAt: new Date(),
+    });
+    globalThis.fetch = vi.fn(async () => {
+      throw new Error("network down");
+    }) as unknown as typeof fetch;
+    const res = await callRoute(validBody);
+    expect(res.status).toBe(200);
+    await flushAsync();
+    // Log row still written, but pushSent=false (fetch threw).
+    expect(state.notificationLogs).toHaveLength(1);
+    expect(state.notificationLogs[0].pushSent).toBe(false);
   });
 });

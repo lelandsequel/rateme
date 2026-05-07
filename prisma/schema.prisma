@@ -119,6 +119,15 @@ model User {
   managedMemberships  TeamMembership[] @relation("MembershipManager")
   membershipAsMember  TeamMembership?  @relation("MembershipMember")
 
+  // Favorites — Raters can mark Reps as favorites to receive notifications
+  // whenever the Rep gets a new rating. Two-sided relation: as the watching
+  // rater, and as the watched rep.
+  favoritesAsRater   Favorite[]        @relation("FavoriteRater")
+  favoritedByRaters  Favorite[]        @relation("FavoriteRep")
+
+  // In-app + cross-channel notification log (push/email tracked here too).
+  notifications      NotificationLog[]
+
   @@index([role])
   @@index([state])
 }
@@ -331,4 +340,43 @@ model PushToken {
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Favorites — a Rater "watches" a Rep. When a watched Rep gets a new rating
+// from anyone, every watching Rater gets a push + email notification. The
+// rater identity is NEVER leaked to a third party in the notification body
+// (the rep is the named subject; the rater is anonymous to the world).
+// ---------------------------------------------------------------------------
+
+model Favorite {
+  id          String   @id @default(cuid())
+  raterUserId String
+  rater       User     @relation("FavoriteRater", fields: [raterUserId], references: [id], onDelete: Cascade)
+  repUserId   String
+  rep         User     @relation("FavoriteRep", fields: [repUserId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([raterUserId, repUserId])
+  @@index([repUserId])  // fan-out lookup on rating-create
+  @@index([raterUserId])
+}
+
+// ---------------------------------------------------------------------------
+// NotificationLog — append-only record of notifications fanned out by the
+// app. The `payload` field is a JSON blob the app reads back for an in-app
+// inbox; pushSent/emailSent record best-effort outbound delivery.
+// ---------------------------------------------------------------------------
+
+model NotificationLog {
+  id           String   @id @default(cuid())
+  userId       String   // recipient
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind         String   // "favorite-rating" for now
+  payload      String   // JSON blob, app-readable
+  pushSent     Boolean  @default(false)
+  emailSent    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  @@index([userId, createdAt])
 }
