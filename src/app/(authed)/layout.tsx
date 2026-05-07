@@ -17,6 +17,7 @@ const NAV_BY_ROLE: Record<string, NavLink[]> = {
     { href: "/raters", label: "Browse Raters" },
     { href: "/connections", label: "Connections" },
     { href: "/team", label: "Team" },
+    { href: "/me", label: "Me" },
   ],
   RATER: [
     { href: "/home", label: "Home" },
@@ -24,23 +25,27 @@ const NAV_BY_ROLE: Record<string, NavLink[]> = {
     { href: "/favorites", label: "Favorites" },
     { href: "/connections", label: "Connections" },
     { href: "/team", label: "Team" },
+    { href: "/me", label: "Me" },
   ],
   SALES_MANAGER: [
     { href: "/home", label: "Home" },
     { href: "/reps", label: "Browse Reps" },
     { href: "/raters", label: "Browse Raters" },
     { href: "/team", label: "Team" },
+    { href: "/me", label: "Me" },
   ],
   RATER_MANAGER: [
     { href: "/home", label: "Home" },
     { href: "/raters", label: "Browse Raters" },
     { href: "/team", label: "Team" },
+    { href: "/me", label: "Me" },
   ],
   ADMIN: [
     { href: "/home", label: "Home" },
     { href: "/reps", label: "Browse Reps" },
     { href: "/raters", label: "Browse Raters" },
     { href: "/connections", label: "Connections" },
+    { href: "/me", label: "Me" },
   ],
 };
 
@@ -71,14 +76,49 @@ export default async function AuthedLayout({ children }: { children: React.React
             </div>
           </div>
           <div className="flex items-center gap-4 text-sm">
-            <span className="text-[#c6c5d4]">
-              {session.user.name ?? session.user.email} · <span className="text-[#9da4c1]">{role}</span>
-            </span>
+            <Link href="/me" className="flex items-center gap-2 group">
+              <AvatarBadge
+                avatarUrl={session.user.avatarUrl ?? null}
+                name={session.user.name ?? session.user.email ?? "?"}
+              />
+              <span className="text-[#c6c5d4] group-hover:text-[#dae2fd]">
+                {session.user.name ?? session.user.email} ·{" "}
+                <span className="text-[#9da4c1]">{role}</span>
+              </span>
+            </Link>
             <SignOutButton />
           </div>
         </div>
       </nav>
       <main className="mx-auto max-w-6xl px-6 py-8">{children}</main>
+    </div>
+  );
+}
+
+function AvatarBadge({
+  avatarUrl,
+  name,
+}: {
+  avatarUrl: string | null;
+  name: string;
+}) {
+  const initial = (name?.trim()?.[0] ?? "?").toUpperCase();
+  if (avatarUrl) {
+    // Plain <img> on purpose — Supabase public URLs aren't on the
+    // next/image allow-list and we don't want to add a remotePatterns
+    // entry just for this. The image is small (header circle).
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={avatarUrl}
+        alt={name}
+        className="w-7 h-7 rounded-full object-cover bg-[#0b1326] border border-[#2d3449]"
+      />
+    );
+  }
+  return (
+    <div className="w-7 h-7 rounded-full bg-[#001d92] flex items-center justify-center text-[#bbc3ff] text-xs font-bold">
+      {initial}
     </div>
   );
 }
