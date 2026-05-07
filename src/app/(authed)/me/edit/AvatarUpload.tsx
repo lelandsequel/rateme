@@ -77,10 +77,10 @@ export function AvatarUpload({
           <img
             src={preview}
             alt="Avatar preview"
-            className="w-20 h-20 rounded-full object-cover border border-[#2d3449] bg-[#0b1326]"
+            className="w-20 h-20 rounded-full object-cover border border-[#e5e7eb] bg-[#ffffff]"
           />
         ) : (
-          <div className="w-20 h-20 rounded-full bg-[#001d92] flex items-center justify-center text-[#bbc3ff] text-2xl font-bold">
+          <div className="w-20 h-20 rounded-full bg-[#e2e8f0] flex items-center justify-center text-[#0f172a] text-2xl font-bold">
             {initial}
           </div>
         )}
@@ -89,19 +89,19 @@ export function AvatarUpload({
             type="file"
             accept="image/png,image/jpeg,image/webp"
             onChange={onPick}
-            className="block text-sm text-[#c6c5d4] file:mr-3 file:rounded-md file:border-0 file:bg-[#2d3449] file:px-3 file:py-1.5 file:text-[#dae2fd] hover:file:bg-[#3a4262]"
+            className="block text-sm text-[#475569] file:mr-3 file:rounded-md file:border-0 file:bg-[#e5e7eb] file:px-3 file:py-1.5 file:text-[#0f172a] hover:file:bg-[#cbd5e1]"
           />
-          <p className="text-xs text-[#9da4c1] mt-1">PNG, JPEG, or WebP. Max 2MB.</p>
+          <p className="text-xs text-[#94a3b8] mt-1">PNG, JPEG, or WebP. Max 2MB.</p>
         </div>
       </div>
 
       {error && (
-        <div className="text-sm text-red-400 bg-[#93000a]/10 border border-[#93000a]/30 rounded-lg px-3 py-2">
+        <div className="text-sm text-[#dc2626] bg-[#fee2e2] border border-[#fecaca] rounded-lg px-3 py-2">
           {error}
         </div>
       )}
       {success && (
-        <div className="text-sm text-emerald-300 bg-emerald-900/10 border border-emerald-700/30 rounded-lg px-3 py-2">
+        <div className="text-sm text-[#166534] bg-[#dcfce7] border border-[#bbf7d0] rounded-lg px-3 py-2">
           {success}
         </div>
       )}
@@ -110,7 +110,7 @@ export function AvatarUpload({
         type="button"
         onClick={onSubmit}
         disabled={!file || submitting}
-        className="bg-[#bbc3ff] text-[#0b1326] px-4 py-2 rounded-lg font-medium text-sm hover:bg-[#bbc3ff]/80 transition-colors disabled:opacity-50"
+        className="bg-[#dc2626] text-[#ffffff] px-4 py-2 rounded-lg font-medium text-sm hover:bg-[#b91c1c] transition-colors disabled:opacity-50"
       >
         {submitting ? "Uploading…" : "Upload avatar"}
       </button>

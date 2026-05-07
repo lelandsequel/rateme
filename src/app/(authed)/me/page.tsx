@@ -26,7 +26,7 @@ export default async function MePage() {
     return (
       <div className="space-y-3">
         <h1 className="text-2xl font-bold">Profile unavailable</h1>
-        <p className="text-[#c6c5d4]">Database not configured. Mock-mode shell.</p>
+        <p className="text-[#475569]">Database not configured. Mock-mode shell.</p>
       </div>
     );
   }
@@ -43,7 +43,7 @@ export default async function MePage() {
     return (
       <div className="space-y-3">
         <h1 className="text-2xl font-bold">Account missing</h1>
-        <p className="text-[#c6c5d4]">Your user row was deleted. Sign out and sign back in.</p>
+        <p className="text-[#475569]">Your user row was deleted. Sign out and sign back in.</p>
       </div>
     );
   }
@@ -83,38 +83,38 @@ export default async function MePage() {
           <a
             href="/api/me/export"
             download
-            className="text-sm bg-[#131b2e] border border-[#2d3449] text-[#c6c5d4] px-3 py-1.5 rounded-lg hover:text-[#dae2fd]"
+            className="text-sm bg-[#ffffff] border border-[#e5e7eb] text-[#475569] px-3 py-1.5 rounded-lg hover:text-[#0f172a]"
             title="Download a JSON snapshot of all your data"
           >
             Download my data
           </a>
           <Link
             href="/me/edit"
-            className="text-sm bg-[#bbc3ff] text-[#0b1326] px-3 py-1.5 rounded-lg font-medium hover:bg-[#bbc3ff]/80"
+            className="text-sm bg-[#dc2626] text-[#ffffff] px-3 py-1.5 rounded-lg font-medium hover:bg-[#b91c1c]"
           >
             Edit profile
           </Link>
         </div>
       </div>
 
-      <section className="bg-[#131b2e] rounded-xl p-6 border border-[#171f33]/50">
+      <section className="bg-[#ffffff] rounded-xl p-6 border border-[#e5e7eb]">
         <div className="flex items-center gap-4">
           {user.avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={user.avatarUrl}
               alt={user.name}
-              className="w-16 h-16 rounded-full object-cover border border-[#2d3449] bg-[#0b1326]"
+              className="w-16 h-16 rounded-full object-cover border border-[#e5e7eb] bg-[#ffffff]"
             />
           ) : (
-            <div className="w-16 h-16 rounded-full bg-[#001d92] flex items-center justify-center text-[#bbc3ff] text-xl font-bold">
+            <div className="w-16 h-16 rounded-full bg-[#e2e8f0] flex items-center justify-center text-[#0f172a] text-xl font-bold">
               {initial}
             </div>
           )}
           <div className="flex-1">
             <div className="text-lg font-semibold">{user.name}</div>
-            <div className="text-sm text-[#c6c5d4]">{user.email}</div>
-            <div className="text-xs text-[#9da4c1] mt-1">
+            <div className="text-sm text-[#475569]">{user.email}</div>
+            <div className="text-xs text-[#94a3b8] mt-1">
               {user.role} · {user.state}
             </div>
           </div>
@@ -122,7 +122,7 @@ export default async function MePage() {
         </div>
       </section>
 
-      <section className="bg-[#131b2e] rounded-xl p-6 border border-[#171f33]/50 space-y-2 text-sm">
+      <section className="bg-[#ffffff] rounded-xl p-6 border border-[#e5e7eb] space-y-2 text-sm">
         <h2 className="text-base font-semibold mb-2">Profile</h2>
         {user.repProfile && (
           <>
@@ -149,7 +149,7 @@ export default async function MePage() {
           </>
         )}
         {!user.repProfile && !user.raterProfile && !user.managerProfile && (
-          <p className="text-[#9da4c1]">No profile fields for this role.</p>
+          <p className="text-[#94a3b8]">No profile fields for this role.</p>
         )}
       </section>
     </div>
@@ -158,24 +158,26 @@ export default async function MePage() {
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between gap-4 py-1 border-b border-[#171f33]/30 last:border-0">
-      <span className="text-[#9da4c1]">{label}</span>
-      <span className="text-[#dae2fd]">{value}</span>
+    <div className="flex justify-between gap-4 py-1 border-b border-[#e5e7eb] last:border-0">
+      <span className="text-[#94a3b8]">{label}</span>
+      <span className="text-[#0f172a]">{value}</span>
     </div>
   );
 }
 
 function StatusBadge({ status }: { status: StatusTier }) {
+  // Flat B2B SaaS pills. Slate-200 background + slate-700 text for every tier
+  // except ELITE+, which earns the red pill.
   const tone: Record<StatusTier, string> = {
-    Unverified: "bg-[#2d3449] text-[#9da4c1]",
-    Verified: "bg-[#1a3358] text-[#bbc3ff]",
-    Trusted: "bg-[#1d4d3a] text-[#9be7c4]",
-    Preferred: "bg-[#3a2a5a] text-[#d3b8ff]",
-    ELITE: "bg-[#5a3000] text-[#ffd098]",
-    "ELITE+": "bg-[#7a1a40] text-[#ffb0d0]",
+    Unverified: "bg-[#e2e8f0] text-[#475569]",
+    Verified: "bg-[#e2e8f0] text-[#334155]",
+    Trusted: "bg-[#e2e8f0] text-[#334155]",
+    Preferred: "bg-[#e2e8f0] text-[#334155]",
+    ELITE: "bg-[#e2e8f0] text-[#334155]",
+    "ELITE+": "bg-[#dc2626] text-white",
   };
   return (
-    <span className={`text-xs font-medium px-2 py-1 rounded-md ${tone[status]}`}>
+    <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${tone[status]}`}>
       {status}
     </span>
   );

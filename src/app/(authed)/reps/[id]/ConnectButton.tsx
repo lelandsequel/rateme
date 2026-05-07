@@ -34,11 +34,11 @@ export function ConnectButton({ repUserId, label = "Request connection" }: { rep
       <button
         onClick={onClick}
         disabled={busy}
-        className="px-4 py-2 rounded-lg bg-[#bbc3ff] text-[#0b1326] font-medium text-sm hover:bg-[#bbc3ff]/80 disabled:opacity-50"
+        className="px-4 py-2 rounded-lg bg-[#dc2626] text-[#ffffff] font-medium text-sm hover:bg-[#b91c1c] disabled:opacity-50"
       >
         {busy ? "Sending…" : label}
       </button>
-      {err && <span className="text-xs text-red-400">{err}</span>}
+      {err && <span className="text-xs text-[#dc2626]">{err}</span>}
     </div>
   );
 }

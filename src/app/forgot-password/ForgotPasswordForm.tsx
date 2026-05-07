@@ -31,7 +31,7 @@ export function ForgotPasswordForm() {
 
   if (submitted) {
     return (
-      <div className="text-sm text-[#dae2fd] bg-[#001d92]/30 border border-[#001d92]/50 rounded-lg px-3 py-3">
+      <div className="text-sm text-[#0f172a] bg-[#fecaca] border border-[#fecaca] rounded-lg px-3 py-3">
         If an account exists for that email, a reset link is on the way.
       </div>
     );
@@ -40,7 +40,7 @@ export function ForgotPasswordForm() {
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <div>
-        <label htmlFor="email" className="block text-xs text-[#c6c5d4] mb-1">
+        <label htmlFor="email" className="block text-xs text-[#475569] mb-1">
           Email
         </label>
         <input
@@ -51,7 +51,7 @@ export function ForgotPasswordForm() {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full bg-[#0b1326] text-[#dae2fd] px-3 py-2 rounded-lg border border-[#2d3449] focus:outline-none focus:ring-1 focus:ring-[#bbc3ff]/40"
+          className="w-full bg-[#ffffff] text-[#0f172a] px-3 py-2 rounded-lg border border-[#e5e7eb] focus:outline-none focus:ring-1 focus:ring-[#dc2626]/40"
           placeholder="you@company.com"
         />
       </div>
@@ -59,7 +59,7 @@ export function ForgotPasswordForm() {
       <button
         type="submit"
         disabled={submitting}
-        className="w-full bg-[#bbc3ff] text-[#0b1326] px-4 py-2.5 rounded-lg font-medium text-sm hover:bg-[#bbc3ff]/80 transition-colors disabled:opacity-50"
+        className="w-full bg-[#dc2626] text-[#ffffff] px-4 py-2.5 rounded-lg font-medium text-sm hover:bg-[#b91c1c] transition-colors disabled:opacity-50"
       >
         {submitting ? "Sending…" : "Send reset link"}
       </button>

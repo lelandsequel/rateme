@@ -250,8 +250,8 @@ model Rating {
   // Binary brutal-honesty flag.
   takeCallAgain       Boolean
 
-  // Optional review comment (≤500 chars, enforced in route handlers).
-  // Per-rating review text — NOT a chat or DM channel.
+  // Optional review comment (≤500 chars enforced in route handlers).
+  // Per-rating review text — NOT a chat / DM channel.
   comment             String?
 
   // Optional source: was this rating fulfilled via a RatingRequest?

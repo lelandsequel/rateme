@@ -1,10 +1,9 @@
-// GET /api/raters — search the rater directory (REDACTED).
+// GET /api/raters — search the rater directory.
 //
-// Privacy: NEVER returns name or email. Only userId, title, company,
-// industry, state. The userId is required so callers can request a
-// connection by id, but identity is otherwise anonymous.
+// Returns userId, name, title, company, industry, state. Email and other
+// contact info are intentionally NOT in the public payload.
 //
-// Query params: q (matches against title or company — NOT name),
+// Query params: q (matches against title, company, or name),
 //               industry (slug), state (2-letter), limit, offset.
 
 import { Prisma, Role, USState } from "@prisma/client";
@@ -35,12 +34,17 @@ export async function GET(req: Request) {
       ...(state ? { state } : {}),
       ...(q
         ? {
-            raterProfile: {
-              OR: [
-                { title: { contains: q, mode: "insensitive" } },
-                { company: { contains: q, mode: "insensitive" } },
-              ],
-            },
+            OR: [
+              { name: { contains: q, mode: "insensitive" } },
+              {
+                raterProfile: {
+                  OR: [
+                    { title: { contains: q, mode: "insensitive" } },
+                    { company: { contains: q, mode: "insensitive" } },
+                  ],
+                },
+              },
+            ],
           }
         : {}),
       ...(industrySlug

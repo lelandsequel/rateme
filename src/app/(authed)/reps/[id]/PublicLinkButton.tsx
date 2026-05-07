@@ -31,7 +31,7 @@ export function PublicLinkButton({ repId }: { repId: string }) {
     <button
       type="button"
       onClick={copy}
-      className="px-3 py-1.5 rounded-lg bg-[#131b2e] border border-[#2d3449] text-xs text-[#c6c5d4] hover:text-[#dae2fd]"
+      className="px-3 py-1.5 rounded-lg bg-[#ffffff] border border-[#e5e7eb] text-xs text-[#475569] hover:text-[#0f172a]"
       title="Copy your shareable public profile link"
     >
       {copied ? "Link copied" : "Copy public link"}

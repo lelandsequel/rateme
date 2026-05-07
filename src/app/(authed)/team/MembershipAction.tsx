@@ -46,16 +46,16 @@ export function MembershipAction({
           disabled={busy !== null}
           className={`text-xs px-3 py-1.5 rounded-lg font-medium disabled:opacity-50 ${
             a === "accept"
-              ? "bg-[#7adfaf] text-[#0b1326] hover:bg-[#7adfaf]/80"
+              ? "bg-[#16a34a] text-[#ffffff] hover:bg-[#16a34a]/80"
               : a === "decline"
-                ? "bg-[#f5867a] text-[#0b1326] hover:bg-[#f5867a]/80"
-                : "bg-[#131b2e] text-[#c6c5d4] border border-[#2d3449] hover:bg-[#2d3449]/40"
+                ? "bg-[#dc2626] text-white hover:bg-[#b91c1c]"
+                : "bg-[#ffffff] text-[#475569] border border-[#e5e7eb] hover:bg-[#f1f5f9]"
           }`}
         >
           {busy === a ? "…" : a}
         </button>
       ))}
-      {err && <span className="text-[10px] text-red-400">{err}</span>}
+      {err && <span className="text-[10px] text-[#dc2626]">{err}</span>}
     </div>
   );
 }

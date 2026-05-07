@@ -67,24 +67,24 @@ export function InviteForm() {
         onChange={(e) => setText(e.target.value)}
         rows={5}
         placeholder="One email per line, or comma-separated"
-        className="w-full bg-[#131b2e] border border-[#2d3449] rounded-lg p-3 text-sm text-[#dae2fd] placeholder:text-[#9da4c1]/60 focus:outline-none focus:border-[#bbc3ff]"
+        className="w-full bg-[#ffffff] border border-[#e5e7eb] rounded-lg p-3 text-sm text-[#0f172a] placeholder:text-[#94a3b8]/60 focus:outline-none focus:border-[#dc2626]"
         disabled={busy}
       />
       <div className="flex items-center gap-3">
         <button
           type="submit"
           disabled={busy}
-          className="text-sm px-4 py-2 rounded-lg bg-[#bbc3ff] text-[#0b1326] font-medium hover:bg-[#bbc3ff]/80 disabled:opacity-50"
+          className="text-sm px-4 py-2 rounded-lg bg-[#dc2626] text-[#ffffff] font-medium hover:bg-[#b91c1c] disabled:opacity-50"
         >
           {busy ? "Sending..." : "Send invites"}
         </button>
-        {err && <span className="text-xs text-red-400">{err}</span>}
+        {err && <span className="text-xs text-[#dc2626]">{err}</span>}
       </div>
 
       {result && (
         <div className="mt-2 space-y-2 text-xs">
           {result.created.length > 0 && (
-            <div className="text-[#7adfaf]">
+            <div className="text-[#16a34a]">
               Invited {result.created.length}: {result.created.map((c) => c.email).join(", ")}
             </div>
           )}

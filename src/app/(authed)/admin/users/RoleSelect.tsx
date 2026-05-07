@@ -60,7 +60,7 @@ export function RoleSelect({
         defaultValue={currentRole}
         onChange={onChange}
         disabled={busy || pending}
-        className="bg-[#0b1326] border border-[#2d3449] rounded px-2 py-1 text-xs text-[#dae2fd] disabled:opacity-50"
+        className="bg-[#ffffff] border border-[#e5e7eb] rounded px-2 py-1 text-xs text-[#0f172a] disabled:opacity-50"
       >
         {ROLES.map((r) => (
           <option key={r} value={r}>

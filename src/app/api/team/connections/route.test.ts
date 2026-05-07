@@ -178,8 +178,8 @@ describe("GET /api/team/connections", () => {
     const r = body.raters[0];
     expect(r.title).toBe("VP Procurement");
     expect(r.company).toBe("Globex");
-    // PRIVACY: redacted, NO name/email leak.
-    expect(r.name).toBeUndefined();
+    // Name is now visible (2026-04-29 spec change). Email stays hidden.
+    expect(typeof r.name).toBe("string");
     expect(r.email).toBeUndefined();
     expect(r.connectedToReps.map((x: { repId: string }) => x.repId).sort()).toEqual([
       "rep-1",

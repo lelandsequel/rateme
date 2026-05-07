@@ -26,9 +26,9 @@ export function OnBehalfRequest({
 
   if (raters.length === 0) {
     return (
-      <div className="bg-[#131b2e] rounded-xl border border-[#171f33]/50 p-6">
+      <div className="bg-[#ffffff] rounded-xl border border-[#e5e7eb] p-6">
         <h3 className="font-bold mb-1">Request a rating on behalf</h3>
-        <p className="text-sm text-[#c6c5d4]">
+        <p className="text-sm text-[#475569]">
           This rep doesn&apos;t have any accepted connections yet.
         </p>
       </div>
@@ -69,16 +69,16 @@ export function OnBehalfRequest({
   }
 
   return (
-    <div className="bg-[#131b2e] rounded-xl border border-[#171f33]/50 p-6">
+    <div className="bg-[#ffffff] rounded-xl border border-[#e5e7eb] p-6">
       <h3 className="font-bold mb-1">Request a rating on behalf</h3>
-      <p className="text-sm text-[#c6c5d4] mb-4">
+      <p className="text-sm text-[#475569] mb-4">
         Pick a connected rater. They&apos;ll get a one-time prompt.
       </p>
       <form onSubmit={onSubmit} className="flex flex-col sm:flex-row gap-2">
         <select
           value={selected}
           onChange={(e) => setSelected(e.target.value)}
-          className="flex-1 bg-[#0b1326] border border-[#2d3449] rounded-lg px-3 py-2 text-sm"
+          className="flex-1 bg-[#ffffff] border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm"
         >
           {raters.map((r) => (
             <option key={r.userId} value={r.userId}>
@@ -89,20 +89,20 @@ export function OnBehalfRequest({
         <button
           type="submit"
           disabled={busy || !selected}
-          className="px-4 py-2 rounded-lg bg-[#bbc3ff] text-[#0b1326] font-medium text-sm hover:bg-[#bbc3ff]/80 disabled:opacity-50"
+          className="px-4 py-2 rounded-lg bg-[#dc2626] text-[#ffffff] font-medium text-sm hover:bg-[#b91c1c] disabled:opacity-50"
         >
           {busy ? "Sending…" : "Request rating"}
         </button>
       </form>
       {err && (
-        <div className="text-sm text-red-400 mt-3">
+        <div className="text-sm text-[#dc2626] mt-3">
           {err}
           {retryAfter !== null && (
             <> · Try again in ~{retryAfter} day{retryAfter === 1 ? "" : "s"}.</>
           )}
         </div>
       )}
-      {done && <div className="text-sm text-[#7adfaf] mt-3">Request sent.</div>}
+      {done && <div className="text-sm text-[#16a34a] mt-3">Request sent.</div>}
     </div>
   );
 }

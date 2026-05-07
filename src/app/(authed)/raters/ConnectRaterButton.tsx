@@ -34,11 +34,11 @@ export function ConnectRaterButton({ raterUserId }: { raterUserId: string }) {
       <button
         onClick={onClick}
         disabled={busy}
-        className="text-xs px-3 py-1.5 rounded-lg bg-[#bbc3ff] text-[#0b1326] font-medium hover:bg-[#bbc3ff]/80 disabled:opacity-50"
+        className="text-xs px-3 py-1.5 rounded-lg bg-[#dc2626] text-[#ffffff] font-medium hover:bg-[#b91c1c] disabled:opacity-50"
       >
         {busy ? "Sending…" : "Connect"}
       </button>
-      {err && <span className="text-[10px] text-red-400 max-w-[140px] text-right">{err}</span>}
+      {err && <span className="text-[10px] text-[#dc2626] max-w-[140px] text-right">{err}</span>}
     </div>
   );
 }

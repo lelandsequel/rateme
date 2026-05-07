@@ -66,12 +66,12 @@ export function ResetPasswordForm({ token }: Props) {
   if (done) {
     return (
       <div className="space-y-4">
-        <div className="text-sm text-[#dae2fd] bg-[#001d92]/30 border border-[#001d92]/50 rounded-lg px-3 py-3">
+        <div className="text-sm text-[#0f172a] bg-[#fecaca] border border-[#fecaca] rounded-lg px-3 py-3">
           Password updated.
         </div>
         <Link
           href="/login"
-          className="block text-center w-full bg-[#bbc3ff] text-[#0b1326] px-4 py-2.5 rounded-lg font-medium text-sm hover:bg-[#bbc3ff]/80 transition-colors"
+          className="block text-center w-full bg-[#dc2626] text-[#ffffff] px-4 py-2.5 rounded-lg font-medium text-sm hover:bg-[#b91c1c] transition-colors"
         >
           Sign in
         </Link>
@@ -84,7 +84,7 @@ export function ResetPasswordForm({ token }: Props) {
       <div>
         <label
           htmlFor="newPassword"
-          className="block text-xs text-[#c6c5d4] mb-1"
+          className="block text-xs text-[#475569] mb-1"
         >
           New password
         </label>
@@ -97,11 +97,11 @@ export function ResetPasswordForm({ token }: Props) {
           minLength={8}
           value={newPassword}
           onChange={(e) => setNewPassword(e.target.value)}
-          className="w-full bg-[#0b1326] text-[#dae2fd] px-3 py-2 rounded-lg border border-[#2d3449] focus:outline-none focus:ring-1 focus:ring-[#bbc3ff]/40"
+          className="w-full bg-[#ffffff] text-[#0f172a] px-3 py-2 rounded-lg border border-[#e5e7eb] focus:outline-none focus:ring-1 focus:ring-[#dc2626]/40"
         />
       </div>
       <div>
-        <label htmlFor="confirm" className="block text-xs text-[#c6c5d4] mb-1">
+        <label htmlFor="confirm" className="block text-xs text-[#475569] mb-1">
           Confirm new password
         </label>
         <input
@@ -113,12 +113,12 @@ export function ResetPasswordForm({ token }: Props) {
           minLength={8}
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
-          className="w-full bg-[#0b1326] text-[#dae2fd] px-3 py-2 rounded-lg border border-[#2d3449] focus:outline-none focus:ring-1 focus:ring-[#bbc3ff]/40"
+          className="w-full bg-[#ffffff] text-[#0f172a] px-3 py-2 rounded-lg border border-[#e5e7eb] focus:outline-none focus:ring-1 focus:ring-[#dc2626]/40"
         />
       </div>
 
       {error && (
-        <div className="text-sm text-red-400 bg-[#93000a]/10 border border-[#93000a]/30 rounded-lg px-3 py-2">
+        <div className="text-sm text-[#dc2626] bg-[#fee2e2] border border-[#fecaca] rounded-lg px-3 py-2">
           {error}
         </div>
       )}
@@ -126,7 +126,7 @@ export function ResetPasswordForm({ token }: Props) {
       <button
         type="submit"
         disabled={submitting || !token}
-        className="w-full bg-[#bbc3ff] text-[#0b1326] px-4 py-2.5 rounded-lg font-medium text-sm hover:bg-[#bbc3ff]/80 transition-colors disabled:opacity-50"
+        className="w-full bg-[#dc2626] text-[#ffffff] px-4 py-2.5 rounded-lg font-medium text-sm hover:bg-[#b91c1c] transition-colors disabled:opacity-50"
       >
         {submitting ? "Updating…" : "Update password"}
       </button>

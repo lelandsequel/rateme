@@ -91,7 +91,7 @@ export default async function FeedPage() {
     return (
       <div className="space-y-3">
         <h1 className="text-2xl font-bold">Activity</h1>
-        <p className="text-[#c6c5d4]">Database not configured.</p>
+        <p className="text-[#475569]">Database not configured.</p>
       </div>
     );
   }
@@ -107,12 +107,12 @@ export default async function FeedPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <header>
-        <p className="text-xs uppercase tracking-wider text-[#9da4c1]">Last 30 days</p>
+        <p className="text-xs uppercase tracking-wider text-[#94a3b8]">Last 30 days</p>
         <h1 className="text-2xl font-bold mt-1">Activity</h1>
       </header>
 
       {events.length === 0 ? (
-        <div className="bg-[#131b2e] rounded-xl p-6 border border-[#171f33]/50 text-[#c6c5d4]">
+        <div className="bg-[#ffffff] rounded-xl p-6 border border-[#e5e7eb] text-[#475569]">
           Nothing yet. As you connect, give, and receive ratings, this feed will fill up.
         </div>
       ) : (
@@ -439,10 +439,10 @@ function relativeTime(d: Date, now: Date = new Date()): string {
 function DayGroup({ label, events }: DayBucket) {
   return (
     <div>
-      <h2 className="sticky top-0 z-10 bg-[#0b1326]/95 backdrop-blur text-xs uppercase tracking-wider text-[#9da4c1] py-2 border-b border-[#171f33]/50">
+      <h2 className="sticky top-0 z-10 bg-[#ffffff]/95 backdrop-blur text-xs uppercase tracking-wider text-[#94a3b8] py-2 border-b border-[#e5e7eb]">
         {label}
       </h2>
-      <ul className="divide-y divide-[#171f33]/40">
+      <ul className="divide-y divide-[#e5e7eb]/40">
         {events.map((e) => (
           <li key={`${e.kind}-${e.id}`}>
             <FeedRow event={e} />
@@ -457,12 +457,12 @@ function FeedRow({ event }: { event: FeedEvent }) {
   const { icon, summary } = describe(event);
   return (
     <div className="flex items-start gap-3 py-3">
-      <div className="w-8 h-8 rounded-full bg-[#131b2e] border border-[#2d3449] flex items-center justify-center text-base shrink-0">
+      <div className="w-8 h-8 rounded-full bg-[#ffffff] border border-[#e5e7eb] flex items-center justify-center text-base shrink-0">
         {icon}
       </div>
       <div className="flex-1 min-w-0">
-        <div className="text-sm text-[#dae2fd]">{summary}</div>
-        <div className="text-xs text-[#9da4c1] mt-0.5">{relativeTime(event.at)}</div>
+        <div className="text-sm text-[#0f172a]">{summary}</div>
+        <div className="text-xs text-[#94a3b8] mt-0.5">{relativeTime(event.at)}</div>
       </div>
     </div>
   );

@@ -92,9 +92,9 @@ export default async function RatePublicPage({
   return (
     <Frame>
       <header className="mb-6">
-        <p className="text-xs uppercase tracking-wider text-[#9da4c1]">Rate request</p>
+        <p className="text-xs uppercase tracking-wider text-[#94a3b8]">Rate request</p>
         <h1 className="text-3xl font-bold mt-1">{rep.name}</h1>
-        <p className="text-[#c6c5d4]">{rep.repProfile.title} · {rep.repProfile.company}</p>
+        <p className="text-[#475569]">{rep.repProfile.title} · {rep.repProfile.company}</p>
       </header>
       <RatingForm
         repUserId={rep.id}
@@ -140,12 +140,12 @@ async function ONE_TIME_view({
         title={`${repName} invited you to rate them`}
         body={
           <>
-            We don&apos;t have an RMR account for <span className="text-[#dae2fd]">{toEmail}</span> yet.
+            We don&apos;t have an RMR account for <span className="text-[#0f172a]">{toEmail}</span> yet.
             Sign up first, then return to this link to finish the rating.
             <div className="mt-4">
               <Link
                 href={`/signup?email=${encodeURIComponent(toEmail)}&role=RATER`}
-                className="inline-flex px-4 py-2 rounded-lg bg-[#bbc3ff] text-[#0b1326] font-medium text-sm hover:bg-[#bbc3ff]/80"
+                className="inline-flex px-4 py-2 rounded-lg bg-[#dc2626] text-[#ffffff] font-medium text-sm hover:bg-[#b91c1c]"
               >
                 Sign up to rate
               </Link>
@@ -169,9 +169,9 @@ async function ONE_TIME_view({
       return (
         <Frame>
           <header className="mb-6">
-            <p className="text-xs uppercase tracking-wider text-[#9da4c1]">Rate</p>
+            <p className="text-xs uppercase tracking-wider text-[#94a3b8]">Rate</p>
             <h1 className="text-3xl font-bold mt-1">{repName}</h1>
-            <p className="text-[#c6c5d4]">{repTitle} · {repCompany}</p>
+            <p className="text-[#475569]">{repTitle} · {repCompany}</p>
           </header>
           <RatingForm
             repUserId={repUserId}
@@ -190,7 +190,7 @@ async function ONE_TIME_view({
             <div className="mt-4">
               <Link
                 href={`/login?callbackUrl=/reps/${repUserId}/rate?ratingRequestId=${rrId}`}
-                className="inline-flex px-4 py-2 rounded-lg bg-[#bbc3ff] text-[#0b1326] font-medium text-sm hover:bg-[#bbc3ff]/80"
+                className="inline-flex px-4 py-2 rounded-lg bg-[#dc2626] text-[#ffffff] font-medium text-sm hover:bg-[#b91c1c]"
               >
                 Sign in
               </Link>
@@ -244,9 +244,9 @@ async function ONE_TIME_view({
     return (
       <Frame>
         <header className="mb-6">
-          <p className="text-xs uppercase tracking-wider text-[#9da4c1]">Rate</p>
+          <p className="text-xs uppercase tracking-wider text-[#94a3b8]">Rate</p>
           <h1 className="text-3xl font-bold mt-1">{repName}</h1>
-          <p className="text-[#c6c5d4]">{repTitle} · {repCompany}</p>
+          <p className="text-[#475569]">{repTitle} · {repCompany}</p>
         </header>
         <RatingForm
           repUserId={repUserId}
@@ -270,7 +270,7 @@ async function ONE_TIME_view({
           <div className="mt-4">
             <Link
               href={`/login?callbackUrl=/rate/${rrId}`}
-              className="inline-flex px-4 py-2 rounded-lg bg-[#bbc3ff] text-[#0b1326] font-medium text-sm hover:bg-[#bbc3ff]/80"
+              className="inline-flex px-4 py-2 rounded-lg bg-[#dc2626] text-[#ffffff] font-medium text-sm hover:bg-[#b91c1c]"
             >
               Sign in
             </Link>
@@ -283,7 +283,7 @@ async function ONE_TIME_view({
 
 function Frame({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-[#0b1326] text-[#dae2fd] p-6">
+    <div className="min-h-screen bg-[#ffffff] text-[#0f172a] p-6">
       <div className="mx-auto max-w-xl py-12">{children}</div>
     </div>
   );
@@ -292,9 +292,9 @@ function Frame({ children }: { children: React.ReactNode }) {
 function Notice({ title, body }: { title: string; body: React.ReactNode }) {
   return (
     <Frame>
-      <div className="bg-[#131b2e] rounded-xl p-8 border border-[#171f33]/50">
+      <div className="bg-[#ffffff] rounded-xl p-8 border border-[#e5e7eb]">
         <h1 className="text-2xl font-bold mb-3">{title}</h1>
-        <div className="text-[#c6c5d4] text-sm">{body}</div>
+        <div className="text-[#475569] text-sm">{body}</div>
       </div>
     </Frame>
   );

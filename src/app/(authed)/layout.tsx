@@ -63,19 +63,23 @@ export default async function AuthedLayout({ children }: { children: React.React
   const links = NAV_BY_ROLE[role] ?? NAV_BY_ROLE.REP;
 
   return (
-    <div className="min-h-screen bg-[#0b1326] text-[#dae2fd]">
-      <nav className="border-b border-[#171f33]/50 bg-[#131b2e]">
+    <div className="min-h-screen bg-white text-[#0f172a]">
+      <nav className="border-b border-[#e5e7eb] bg-white">
         <div className="mx-auto max-w-6xl px-6 flex items-center justify-between py-4">
           <div className="flex items-center gap-8">
             <Link href="/home" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-md bg-[#001d92] flex items-center justify-center">
-                <span className="text-[#bbc3ff] text-sm font-bold">R</span>
+              <div className="w-8 h-8 rounded-md bg-[#dc2626] flex items-center justify-center">
+                <span className="text-white text-sm font-bold">R</span>
               </div>
               <span className="font-bold tracking-tight">RateMyRep</span>
             </Link>
             <div className="flex items-center gap-5 text-sm">
               {links.map((l) => (
-                <Link key={l.href} href={l.href} className="text-[#c6c5d4] hover:text-[#dae2fd]">
+                <Link
+                  key={l.href}
+                  href={l.href}
+                  className="text-[#475569] hover:text-[#0f172a] font-medium"
+                >
                   {l.label}
                 </Link>
               ))}
@@ -87,9 +91,9 @@ export default async function AuthedLayout({ children }: { children: React.React
                 avatarUrl={session.user.avatarUrl ?? null}
                 name={session.user.name ?? session.user.email ?? "?"}
               />
-              <span className="text-[#c6c5d4] group-hover:text-[#dae2fd]">
+              <span className="text-[#475569] group-hover:text-[#0f172a]">
                 {session.user.name ?? session.user.email} ·{" "}
-                <span className="text-[#9da4c1]">{role}</span>
+                <span className="text-[#94a3b8]">{role}</span>
               </span>
             </Link>
             <SignOutButton />
@@ -118,12 +122,12 @@ function AvatarBadge({
       <img
         src={avatarUrl}
         alt={name}
-        className="w-7 h-7 rounded-full object-cover bg-[#0b1326] border border-[#2d3449]"
+        className="w-7 h-7 rounded-full object-cover bg-[#ffffff] border border-[#e5e7eb]"
       />
     );
   }
   return (
-    <div className="w-7 h-7 rounded-full bg-[#001d92] flex items-center justify-center text-[#bbc3ff] text-xs font-bold">
+    <div className="w-7 h-7 rounded-full bg-[#e2e8f0] flex items-center justify-center text-[#0f172a] text-xs font-bold">
       {initial}
     </div>
   );
