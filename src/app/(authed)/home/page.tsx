@@ -10,8 +10,12 @@ import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { aggregateRatings, aggregateRaterRatings, type StatusTier } from "@/lib/aggregates";
+import { generateRecap } from "@/lib/ai-recap";
+import { RecapCard } from "@/components/RecapCard";
 import { ConnectionStatus, Role } from "@prisma/client";
 import { InviteRater } from "./InviteRater";
+
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +62,17 @@ async function RepHome({ userId }: { userId: string }) {
 
   const agg = aggregateRatings(me.ratingsReceived, me.avatarUrl);
 
+  const since = Date.now() - THIRTY_DAYS_MS;
+  const last30 = me.ratingsReceived.filter(
+    (r) => new Date(r.createdAt).getTime() >= since,
+  );
+  const recap = await generateRecap({
+    ratings: last30,
+    perspective: "REP",
+    name: me.name,
+    company: me.repProfile.company,
+  });
+
   return (
     <div className="space-y-8">
       <header>
@@ -86,6 +101,8 @@ async function RepHome({ userId }: { userId: string }) {
         </div>
       )}
 
+      <RecapCard recap={recap} />
+
       <InviteRater />
 
       <div className="flex gap-3">
@@ -104,7 +121,17 @@ async function RaterHome({ userId }: { userId: string }) {
       raterConnections: {
         where: { status: { in: [ConnectionStatus.PENDING, ConnectionStatus.ACCEPTED] } },
       },
-      ratingsGiven: { select: { id: true, createdAt: true } },
+      ratingsGiven: {
+        select: {
+          responsiveness: true,
+          productKnowledge: true,
+          followThrough: true,
+          listeningNeedsFit: true,
+          trustIntegrity: true,
+          takeCallAgain: true,
+          createdAt: true,
+        },
+      },
     },
   });
   if (!me?.raterProfile) return <p>Profile setup pending.</p>;
@@ -112,6 +139,17 @@ async function RaterHome({ userId }: { userId: string }) {
   const pendingCount = me.raterConnections.filter((c) => c.status === "PENDING").length;
   const acceptedCount = me.raterConnections.filter((c) => c.status === "ACCEPTED").length;
   const raterAgg = aggregateRaterRatings(me.ratingsGiven, me.avatarUrl);
+
+  const since = Date.now() - THIRTY_DAYS_MS;
+  const last30 = me.ratingsGiven.filter(
+    (r) => new Date(r.createdAt).getTime() >= since,
+  );
+  const recap = await generateRecap({
+    ratings: last30,
+    perspective: "RATER",
+    name: me.name,
+    company: me.raterProfile.company,
+  });
 
   return (
     <div className="space-y-8">
@@ -130,6 +168,8 @@ async function RaterHome({ userId }: { userId: string }) {
         <Stat label="Pending requests" value={pendingCount} />
         <Stat label="Ratings given" value={raterAgg.ratingsGivenCount} />
       </div>
+
+      <RecapCard recap={recap} />
 
       <div className="flex gap-3">
         <Link href="/reps" className={btnPrimary}>Browse reps to rate</Link>
