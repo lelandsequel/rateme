@@ -133,6 +133,13 @@ vi.mock("@/lib/prisma", () => ({
           (c) => c.raterUserId === args.where.raterUserId,
         ).length;
       }),
+      // Used by repResponseTiming / raterResponseTiming. Our test rows
+      // don't carry timing fields, so we just return an empty list — the
+      // helper handles the empty case (returns nulls in the stats).
+      findMany: vi.fn(async () => []),
+    },
+    ratingRequest: {
+      findMany: vi.fn(async () => []),
     },
     teamMembership: {
       count: vi.fn(

@@ -31,6 +31,7 @@ import {
   type TeamRow,
 } from "@/lib/email-templates";
 import { aggregateRatings, type RatingForAgg } from "@/lib/aggregates";
+import { repResponseTiming, raterResponseTiming } from "@/lib/response-timing";
 
 const PAGE_SIZE = 200;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -187,6 +188,8 @@ async function processRep(user: UserMin, ctx: WindowCtx): Promise<"sent" | "skip
     select: ratingForAggSelect(),
   });
 
+  const timing = await repResponseTiming(prisma, user.id);
+
   const msg = repHighlight(
     {
       name: user.name,
@@ -197,6 +200,7 @@ async function processRep(user: UserMin, ctx: WindowCtx): Promise<"sent" | "skip
     },
     ratings7 as RatingForAgg[],
     ratings30 as RatingForAgg[],
+    timing,
   );
   const res = await sendEmail(msg);
   return res.ok ? "sent" : "skipped";
@@ -224,6 +228,8 @@ async function processRater(user: UserMin, ctx: WindowCtx): Promise<"sent" | "sk
     }),
   ]);
 
+  const timing = await raterResponseTiming(prisma, user.id);
+
   const msg = raterHighlight(
     {
       name: user.name,
@@ -233,6 +239,7 @@ async function processRater(user: UserMin, ctx: WindowCtx): Promise<"sent" | "sk
     },
     given7,
     given30,
+    timing,
   );
   const res = await sendEmail(msg);
   return res.ok ? "sent" : "skipped";

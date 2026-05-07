@@ -12,6 +12,13 @@ import { prisma } from "@/lib/prisma";
 import { aggregateRatings, aggregateRaterRatings, type StatusTier } from "@/lib/aggregates";
 import { generateRecap } from "@/lib/ai-recap";
 import { RecapCard } from "@/components/RecapCard";
+import { recommendTraining } from "@/lib/training-recs";
+import {
+  repResponseTiming,
+  raterResponseTiming,
+  formatHrs,
+  type TimingStats,
+} from "@/lib/response-timing";
 import {
   totalFeedbackMoM,
   avgScoreMoM,
@@ -77,6 +84,8 @@ async function RepHome({ userId }: { userId: string }) {
   if (!me?.repProfile) return <p>Set up your rep profile to get started.</p>;
 
   const agg = aggregateRatings(me.ratingsReceived, me.avatarUrl);
+  const trainingRecs = recommendTraining(me.ratingsReceived);
+  const timing = await repResponseTiming(prisma, userId);
 
   const since = Date.now() - THIRTY_DAYS_MS;
   const last30 = me.ratingsReceived.filter(
@@ -119,6 +128,10 @@ async function RepHome({ userId }: { userId: string }) {
         </div>
       )}
 
+      <TimingCard timing={timing} kind="rep" />
+
+      <TrainingSuggestions recs={trainingRecs} />
+
       <RecapCard recap={recap} />
 
       <InviteRater />
@@ -157,6 +170,7 @@ async function RaterHome({ userId }: { userId: string }) {
   const pendingCount = me.raterConnections.filter((c) => c.status === "PENDING").length;
   const acceptedCount = me.raterConnections.filter((c) => c.status === "ACCEPTED").length;
   const raterAgg = aggregateRaterRatings(me.ratingsGiven, me.avatarUrl);
+  const timing = await raterResponseTiming(prisma, userId);
 
   const since = Date.now() - THIRTY_DAYS_MS;
   const last30 = me.ratingsGiven.filter(
@@ -188,6 +202,8 @@ async function RaterHome({ userId }: { userId: string }) {
       </div>
 
       <RankingsBar userId={userId} role="RATER" />
+
+      <TimingCard timing={timing} kind="rater" />
 
       <RecapCard recap={recap} />
 
@@ -699,6 +715,105 @@ function Stat({ label, value }: { label: string; value: React.ReactNode }) {
     <div className="bg-[#131b2e] rounded-lg border border-[#171f33]/50 p-4">
       <div className="text-xs uppercase tracking-wider text-[#9da4c1]">{label}</div>
       <div className="text-2xl font-bold mt-1">{value}</div>
+    </div>
+  );
+}
+
+function TimingCard({
+  timing,
+  kind,
+}: {
+  timing: TimingStats;
+  kind: "rep" | "rater";
+}) {
+  const a = formatHrs(timing.avgConnectionResponseHrs);
+  const b = formatHrs(timing.avgRatingFulfillmentHrs);
+  const aLabel =
+    kind === "rep" ? "Avg connection response" : "Avg time to accept connections";
+  const bLabel =
+    kind === "rep" ? "Avg time to receive a rating" : "Avg time to fulfill rating asks";
+  return (
+    <div className="bg-[#131b2e] rounded-xl p-6 border border-[#171f33]/50">
+      <h2 className="font-bold mb-4">Response timing</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <div className="text-xs uppercase tracking-wider text-[#9da4c1]">{aLabel}</div>
+          <div className="text-2xl font-bold mt-1">{a}</div>
+          <div className="text-xs text-[#9da4c1] mt-1">
+            {timing.countConnectionResponses} sample
+            {timing.countConnectionResponses === 1 ? "" : "s"}
+          </div>
+        </div>
+        <div>
+          <div className="text-xs uppercase tracking-wider text-[#9da4c1]">{bLabel}</div>
+          <div className="text-2xl font-bold mt-1">{b}</div>
+          <div className="text-xs text-[#9da4c1] mt-1">
+            {timing.countRatingFulfillments} sample
+            {timing.countRatingFulfillments === 1 ? "" : "s"}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const DIM_PRETTY: Record<string, string> = {
+  responsiveness: "Responsiveness",
+  productKnowledge: "Product knowledge",
+  followThrough: "Follow-through",
+  listeningNeedsFit: "Listening / needs fit",
+  trustIntegrity: "Trust & integrity",
+};
+
+const SEVERITY_BADGE: Record<string, string> = {
+  low: "bg-[#3a1d1d] text-[#f5867a]",
+  medium: "bg-[#3a2d1d] text-[#f5c97a]",
+  high: "bg-[#1d3a5e] text-[#7ab3f5]",
+};
+
+function TrainingSuggestions({
+  recs,
+}: {
+  recs: ReturnType<typeof recommendTraining>;
+}) {
+  if (recs.length === 0) return null;
+  return (
+    <div className="bg-[#131b2e] rounded-xl p-6 border border-[#171f33]/50">
+      <h2 className="font-bold mb-4">Training suggestions</h2>
+      <div className="space-y-4">
+        {recs.map((rec) => (
+          <div
+            key={rec.dimension}
+            className="rounded-lg border border-[#171f33]/50 bg-[#0b1326] p-4"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="font-medium">{DIM_PRETTY[rec.dimension] ?? rec.dimension}</div>
+              <span
+                className={`text-xs px-2 py-0.5 rounded ${SEVERITY_BADGE[rec.severity]}`}
+              >
+                {rec.severity} · {rec.averageScore.toFixed(1)}
+              </span>
+            </div>
+            <p className="text-sm text-[#c6c5d4]">{rec.suggestion}</p>
+            {rec.resources.length > 0 && (
+              <ul className="mt-2 list-disc list-inside text-sm">
+                {rec.resources.map((res) => (
+                  <li key={res.url}>
+                    <a
+                      href={res.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#bbc3ff] hover:underline"
+                    >
+                      {res.title}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

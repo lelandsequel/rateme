@@ -17,6 +17,7 @@ const NAV_BY_ROLE: Record<string, NavLink[]> = {
     { href: "/raters", label: "Browse Raters" },
     { href: "/connections", label: "Connections" },
     { href: "/team", label: "Team" },
+    { href: "/feed", label: "Activity" },
     { href: "/me", label: "Me" },
   ],
   RATER: [
@@ -25,6 +26,7 @@ const NAV_BY_ROLE: Record<string, NavLink[]> = {
     { href: "/favorites", label: "Favorites" },
     { href: "/connections", label: "Connections" },
     { href: "/team", label: "Team" },
+    { href: "/feed", label: "Activity" },
     { href: "/me", label: "Me" },
   ],
   SALES_MANAGER: [
@@ -32,12 +34,14 @@ const NAV_BY_ROLE: Record<string, NavLink[]> = {
     { href: "/reps", label: "Browse Reps" },
     { href: "/raters", label: "Browse Raters" },
     { href: "/team", label: "Team" },
+    { href: "/feed", label: "Activity" },
     { href: "/me", label: "Me" },
   ],
   RATER_MANAGER: [
     { href: "/home", label: "Home" },
     { href: "/raters", label: "Browse Raters" },
     { href: "/team", label: "Team" },
+    { href: "/feed", label: "Activity" },
     { href: "/me", label: "Me" },
   ],
   ADMIN: [
@@ -46,6 +50,7 @@ const NAV_BY_ROLE: Record<string, NavLink[]> = {
     { href: "/raters", label: "Browse Raters" },
     { href: "/connections", label: "Connections" },
     { href: "/admin", label: "Admin" },
+    { href: "/feed", label: "Activity" },
     { href: "/me", label: "Me" },
   ],
 };
