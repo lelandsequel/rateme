@@ -12,6 +12,7 @@ import { prisma } from "@/lib/prisma";
 import { aggregateRatings, aggregateRaterRatings, type StatusTier } from "@/lib/aggregates";
 import { ConnectionStatus, Role } from "@prisma/client";
 import { InviteRater } from "./InviteRater";
+import { RankingsBar } from "./RankingsBar";
 
 export const dynamic = "force-dynamic";
 
@@ -73,6 +74,8 @@ async function RepHome({ userId }: { userId: string }) {
         <Stat label="Take call again?" value={agg.takeCallAgainPct === null ? "—" : `${agg.takeCallAgainPct}%`} />
       </div>
 
+      <RankingsBar userId={userId} role="REP" />
+
       {agg.averages && (
         <div className="bg-[#131b2e] rounded-xl p-6 border border-[#171f33]/50">
           <h2 className="font-bold mb-4">Dimension averages</h2>
@@ -130,6 +133,8 @@ async function RaterHome({ userId }: { userId: string }) {
         <Stat label="Pending requests" value={pendingCount} />
         <Stat label="Ratings given" value={raterAgg.ratingsGivenCount} />
       </div>
+
+      <RankingsBar userId={userId} role="RATER" />
 
       <div className="flex gap-3">
         <Link href="/reps" className={btnPrimary}>Browse reps to rate</Link>
