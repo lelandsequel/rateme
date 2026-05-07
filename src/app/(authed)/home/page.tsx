@@ -9,12 +9,13 @@
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { aggregateRatings, type StatusTier } from "@/lib/aggregates";
+import { aggregateRatings, aggregateRaterRatings, type StatusTier } from "@/lib/aggregates";
 import { ConnectionStatus, Role } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
 const STATUS_BADGE: Record<StatusTier, string> = {
+  Unverified: "bg-[#2d2d3a] text-[#9da4c1]",
   Verified: "bg-[#2d3449] text-[#c6c5d4]",
   Trusted: "bg-[#0f3a2a] text-[#7adfaf]",
   Preferred: "bg-[#1d3a5e] text-[#7ab3f5]",
@@ -54,7 +55,7 @@ async function RepHome({ userId }: { userId: string }) {
   });
   if (!me?.repProfile) return <p>Set up your rep profile to get started.</p>;
 
-  const agg = aggregateRatings(me.ratingsReceived);
+  const agg = aggregateRatings(me.ratingsReceived, me.avatarUrl);
 
   return (
     <div className="space-y-8">
@@ -100,13 +101,14 @@ async function RaterHome({ userId }: { userId: string }) {
       raterConnections: {
         where: { status: { in: [ConnectionStatus.PENDING, ConnectionStatus.ACCEPTED] } },
       },
-      ratingsGiven: { select: { id: true } },
+      ratingsGiven: { select: { id: true, createdAt: true } },
     },
   });
   if (!me?.raterProfile) return <p>Profile setup pending.</p>;
 
   const pendingCount = me.raterConnections.filter((c) => c.status === "PENDING").length;
   const acceptedCount = me.raterConnections.filter((c) => c.status === "ACCEPTED").length;
+  const raterAgg = aggregateRaterRatings(me.ratingsGiven, me.avatarUrl);
 
   return (
     <div className="space-y-8">
@@ -116,10 +118,14 @@ async function RaterHome({ userId }: { userId: string }) {
         <p className="text-[#c6c5d4]">{me.raterProfile.title} · {me.raterProfile.company}</p>
       </header>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Stat
+          label="Status"
+          value={<span className={`px-2 py-0.5 rounded ${STATUS_BADGE[raterAgg.status]}`}>{raterAgg.status}</span>}
+        />
         <Stat label="Active connections" value={acceptedCount} />
         <Stat label="Pending requests" value={pendingCount} />
-        <Stat label="Ratings given" value={me.ratingsGiven.length} />
+        <Stat label="Ratings given" value={raterAgg.ratingsGivenCount} />
       </div>
 
       <div className="flex gap-3">
@@ -163,7 +169,7 @@ async function SalesManagerHome({ userId }: { userId: string }) {
   const teamRows = me.managedMemberships
     .filter((m) => m.member.repProfile)
     .map((m) => {
-      const agg = aggregateRatings(m.member.ratingsReceived);
+      const agg = aggregateRatings(m.member.ratingsReceived, m.member.avatarUrl);
       return {
         id: m.member.id,
         name: m.member.name,

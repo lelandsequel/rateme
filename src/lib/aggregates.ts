@@ -1,11 +1,15 @@
 // Rating aggregates + status-tier calculator.
 //
 // Spec status tiers (calendar year, 90-day grace at year boundary):
+//   Unverified  — signup with no avatar AND below Trusted threshold
 //   Verified    — signup + picture (no rating threshold)
 //   Trusted     — 25 ratings/year
 //   Preferred   — 50 ratings/year
 //   ELITE       — 100 ratings/year
 //   ELITE+      — 500 ratings/year
+//
+// Once a user crosses Trusted (25), they're considered verified-by-volume
+// so the avatar requirement no longer matters.
 //
 // We compute on read (no denormalized status field on RepProfile yet).
 // The 90-day grace: e.g. ratings earned in 2025 count toward status
@@ -13,7 +17,13 @@
 // Jan-Mar 2026 we sum (last calendar year) + (current calendar year)
 // and use the larger. After Mar 31 we use only current calendar year.
 
-export type StatusTier = "Verified" | "Trusted" | "Preferred" | "ELITE" | "ELITE+";
+export type StatusTier =
+  | "Unverified"
+  | "Verified"
+  | "Trusted"
+  | "Preferred"
+  | "ELITE"
+  | "ELITE+";
 
 export interface RatingDimensions {
   responsiveness: number;
@@ -39,6 +49,12 @@ export interface RepAggregates {
   status: StatusTier;
 }
 
+export interface RaterAggregates {
+  ratingsGivenCount: number;
+  ratingsGivenThisYear: number;
+  status: StatusTier;
+}
+
 const STATUS_THRESHOLDS: Array<[StatusTier, number]> = [
   ["ELITE+", 500],
   ["ELITE", 100],
@@ -46,12 +62,15 @@ const STATUS_THRESHOLDS: Array<[StatusTier, number]> = [
   ["Trusted", 25],
 ];
 
-/** Determine status from a yearly rating count. Verified is the floor. */
-export function statusFromYearlyCount(count: number): StatusTier {
+/**
+ * Determine status from a yearly rating count. Users below Trusted (25) and
+ * without an avatar are Unverified; otherwise the floor is Verified.
+ */
+export function statusFromYearlyCount(count: number, hasAvatar: boolean): StatusTier {
   for (const [tier, threshold] of STATUS_THRESHOLDS) {
     if (count >= threshold) return tier;
   }
-  return "Verified";
+  return hasAvatar ? "Verified" : "Unverified";
 }
 
 /**
@@ -80,8 +99,11 @@ export function ratingsCountForStatus(
 
 export function aggregateRatings(
   ratings: ReadonlyArray<RatingForAgg>,
+  avatarUrl: string | null,
   now: Date = new Date(),
 ): RepAggregates {
+  const hasAvatar = !!avatarUrl;
+
   if (ratings.length === 0) {
     return {
       ratingCount: 0,
@@ -89,7 +111,7 @@ export function aggregateRatings(
       takeCallAgainPct: null,
       overall: null,
       ratingsThisYear: 0,
-      status: "Verified",
+      status: statusFromYearlyCount(0, hasAvatar),
     };
   }
 
@@ -128,7 +150,25 @@ export function aggregateRatings(
     takeCallAgainPct: Math.round((yes / n) * 100),
     overall,
     ratingsThisYear,
-    status: statusFromYearlyCount(ratingsThisYear),
+    status: statusFromYearlyCount(ratingsThisYear, hasAvatar),
+  };
+}
+
+/**
+ * Mirror of aggregateRatings for raters: status is driven by the count of
+ * ratings GIVEN by the rater, not received. Same thresholds apply.
+ */
+export function aggregateRaterRatings(
+  ratingsGiven: ReadonlyArray<{ createdAt: Date }>,
+  avatarUrl: string | null,
+  now: Date = new Date(),
+): RaterAggregates {
+  const hasAvatar = !!avatarUrl;
+  const ratingsGivenThisYear = ratingsCountForStatus(ratingsGiven, now);
+  return {
+    ratingsGivenCount: ratingsGiven.length,
+    ratingsGivenThisYear,
+    status: statusFromYearlyCount(ratingsGivenThisYear, hasAvatar),
   };
 }
 

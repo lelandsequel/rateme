@@ -10,6 +10,7 @@ import { ConnectButton } from "./ConnectButton";
 export const dynamic = "force-dynamic";
 
 const STATUS_BADGE: Record<StatusTier, string> = {
+  Unverified: "bg-[#2d2d3a] text-[#9da4c1]",
   Verified: "bg-[#2d3449] text-[#c6c5d4]",
   Trusted: "bg-[#0f3a2a] text-[#7adfaf]",
   Preferred: "bg-[#1d3a5e] text-[#7ab3f5]",
@@ -46,7 +47,25 @@ export default async function RepDetailPage({
     return <div><h1 className="text-2xl font-bold">Rep not found</h1></div>;
   }
 
-  const agg = aggregateRatings(rep.ratingsReceived);
+  const agg = aggregateRatings(rep.ratingsReceived, rep.avatarUrl);
+
+  // Per spec, surface only the rep's Sales Manager (REP_MANAGER) on the profile.
+  const membership = await prisma.teamMembership.findFirst({
+    where: { memberId: rep.id, endedAt: null, acceptedAt: { not: null } },
+    select: {
+      manager: {
+        select: {
+          id: true,
+          name: true,
+          managerProfile: { select: { company: true, managesType: true } },
+        },
+      },
+    },
+  });
+  const salesManager =
+    membership?.manager?.managerProfile?.managesType === "REP_MANAGER"
+      ? membership.manager
+      : null;
 
   // Connection check (only relevant for RATER viewers).
   let connectionStatus: ConnectionStatus | null = null;
@@ -74,6 +93,12 @@ export default async function RepDetailPage({
             {rep.repProfile.title} · {rep.repProfile.company} · {rep.repProfile.industry.name}
           </p>
           <p className="text-xs text-[#9da4c1] mt-1">{rep.repProfile.metroArea ?? rep.state}</p>
+          {salesManager && (
+            <p className="text-xs text-[#9da4c1] mt-1">
+              Manager: {salesManager.name}
+              {salesManager.managerProfile?.company ? ` · ${salesManager.managerProfile.company}` : ""}
+            </p>
+          )}
         </div>
         <span className={`px-3 py-1 rounded ${STATUS_BADGE[agg.status]}`}>{agg.status}</span>
       </header>

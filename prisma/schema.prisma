@@ -132,7 +132,6 @@ model RepProfile {
   industryId String
   industry   Industry @relation(fields: [industryId], references: [id])
   metroArea  String?  // e.g. "Houston, TX" — free-form for now
-  bio        String?  // OPTIONAL — short blurb, capped client-side at 280 chars
 
   @@index([industryId])
   @@index([company])

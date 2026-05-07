@@ -19,7 +19,11 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(req: Request) {
   return handle(async () => {
-    await requireSession();
+    const session = await requireSession();
+    // Reps cannot browse other reps (per spec). Detail-by-id is still allowed.
+    if (session.user.role === Role.REP) {
+      return Response.json({ error: "Reps cannot browse other reps" }, { status: 403 });
+    }
 
     const url = new URL(req.url);
     const q = url.searchParams.get("q")?.trim() || null;

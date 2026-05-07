@@ -36,7 +36,6 @@ export async function GET() {
             title: user.repProfile.title,
             company: user.repProfile.company,
             metroArea: user.repProfile.metroArea,
-            bio: user.repProfile.bio,
             industry: user.repProfile.industry,
           }
         : null,

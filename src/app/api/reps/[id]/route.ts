@@ -40,7 +40,7 @@ export async function GET(
       return Response.json({ error: "Rep not found" }, { status: 404 });
     }
 
-    const aggregates = aggregateRatings(user.ratingsReceived);
+    const aggregates = aggregateRatings(user.ratingsReceived, user.avatarUrl);
 
     return {
       id: user.id,
@@ -50,7 +50,6 @@ export async function GET(
       title: user.repProfile.title,
       company: user.repProfile.company,
       metroArea: user.repProfile.metroArea,
-      bio: user.repProfile.bio,
       industry: user.repProfile.industry,
       aggregates,
     };

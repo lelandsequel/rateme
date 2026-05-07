@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Role, USState } from "@prisma/client";
+import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +18,19 @@ export default async function RepsPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
+  const session = await auth();
+  if (session?.user?.role === Role.REP) {
+    return (
+      <div className="space-y-3">
+        <h1 className="text-2xl font-bold">Reps don&apos;t browse other reps</h1>
+        <p className="text-[#c6c5d4]">
+          Try <Link href="/raters" className="underline hover:text-[#bbc3ff]">/raters</Link> or{" "}
+          <Link href="/home" className="underline hover:text-[#bbc3ff]">/home</Link>.
+        </p>
+      </div>
+    );
+  }
+
   const sp = await searchParams;
   const q = sp.q?.trim() || null;
   const industrySlug = sp.industry || null;
