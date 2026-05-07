@@ -45,6 +45,7 @@ const NAV_BY_ROLE: Record<string, NavLink[]> = {
     { href: "/reps", label: "Browse Reps" },
     { href: "/raters", label: "Browse Raters" },
     { href: "/connections", label: "Connections" },
+    { href: "/admin", label: "Admin" },
     { href: "/me", label: "Me" },
   ],
 };
