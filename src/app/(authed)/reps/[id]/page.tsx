@@ -146,7 +146,17 @@ export default async function RepDetailPage({
           <p className="text-xs text-[#9da4c1] mt-1">{rep.repProfile.metroArea ?? rep.state}</p>
           {salesManager && (
             <p className="text-xs text-[#9da4c1] mt-1">
-              Manager: {salesManager.name}
+              Manager:{" "}
+              {salesManager.id ? (
+                <Link
+                  href={`/managers/${salesManager.id}`}
+                  className="underline hover:text-[#bbc3ff]"
+                >
+                  {salesManager.name}
+                </Link>
+              ) : (
+                salesManager.name
+              )}
               {salesManager.managerProfile?.company ? ` · ${salesManager.managerProfile.company}` : ""}
             </p>
           )}
