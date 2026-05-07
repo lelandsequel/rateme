@@ -224,7 +224,9 @@ model Connection {
 }
 
 // ---------------------------------------------------------------------------
-// Ratings — structured only. NO free text per spec.
+// Ratings — 5 structured dimensions + an optional review comment.
+// "Free text" per the original spec means user-to-user direct messaging
+// (which we don't allow) — review comments tied to a rating ARE fine.
 // ---------------------------------------------------------------------------
 
 model Rating {
@@ -247,6 +249,10 @@ model Rating {
 
   // Binary brutal-honesty flag.
   takeCallAgain       Boolean
+
+  // Optional review comment (≤500 chars, enforced in route handlers).
+  // Per-rating review text — NOT a chat or DM channel.
+  comment             String?
 
   // Optional source: was this rating fulfilled via a RatingRequest?
   ratingRequestId     String?    @unique
