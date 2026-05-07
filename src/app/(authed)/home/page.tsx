@@ -10,10 +10,25 @@ import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { aggregateRatings, aggregateRaterRatings, type StatusTier } from "@/lib/aggregates";
-import { ConnectionStatus, Role } from "@prisma/client";
+import {
+  totalFeedbackMoM,
+  avgScoreMoM,
+  teamDimensionAverages,
+  resolutionRate,
+  weeklyTrendSeries,
+  repInteractionFrequency,
+  type WeeklyTrendBucket,
+  type DimensionScores,
+  type MonthOverMonth,
+  type ResolutionRate,
+} from "@/lib/manager-stats";
+import { publicRater, type PublicRater } from "@/lib/redact";
+import { Prisma, ConnectionStatus, Role } from "@prisma/client";
 import { InviteRater } from "./InviteRater";
 
 export const dynamic = "force-dynamic";
+
+const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 
 const STATUS_BADGE: Record<StatusTier, string> = {
   Unverified: "bg-[#2d2d3a] text-[#9da4c1]",
@@ -139,6 +154,19 @@ async function RaterHome({ userId }: { userId: string }) {
   );
 }
 
+interface RecentRow {
+  id: string;
+  createdAt: Date;
+  responsiveness: number;
+  productKnowledge: number;
+  followThrough: number;
+  listeningNeedsFit: number;
+  trustIntegrity: number;
+  takeCallAgain: boolean;
+  rep: { id: string; name: string; title: string; company: string };
+  rater: PublicRater | null;
+}
+
 async function SalesManagerHome({ userId }: { userId: string }) {
   const me = await prisma.user.findUnique({
     where: { id: userId },
@@ -183,6 +211,16 @@ async function SalesManagerHome({ userId }: { userId: string }) {
       };
     });
 
+  const memberIds = me.managedMemberships
+    .filter((m) => m.member.repProfile)
+    .map((m) => m.member.id);
+
+  const stats = await loadTeamStats({
+    where: memberIds.length === 0
+      ? null
+      : { repUserId: { in: memberIds }, createdAt: { gte: new Date(Date.now() - NINETY_DAYS_MS) } },
+  });
+
   return (
     <div className="space-y-8">
       <header>
@@ -190,6 +228,27 @@ async function SalesManagerHome({ userId }: { userId: string }) {
         <h1 className="text-3xl font-bold mt-1">{me.name}</h1>
         <p className="text-[#c6c5d4]">Sales Manager · {me.managerProfile.company}</p>
       </header>
+
+      <ManagerStatsRow
+        totalFeedback={stats.totalFeedback}
+        avgScore={stats.avgScore}
+        resolution={stats.resolution}
+      />
+
+      <TrendChart series={stats.weekly} />
+
+      {stats.dimensions && (
+        <div className="bg-[#131b2e] rounded-xl p-6 border border-[#171f33]/50">
+          <h2 className="font-bold mb-4">Average score by question (last 30 days)</h2>
+          <div className="space-y-2">
+            <Bar label="Responsiveness" value={stats.dimensions.responsiveness} />
+            <Bar label="Product knowledge" value={stats.dimensions.productKnowledge} />
+            <Bar label="Follow-through" value={stats.dimensions.followThrough} />
+            <Bar label="Listening / needs fit" value={stats.dimensions.listeningNeedsFit} />
+            <Bar label="Trust / integrity" value={stats.dimensions.trustIntegrity} />
+          </div>
+        </div>
+      )}
 
       <div className="bg-[#131b2e] rounded-xl border border-[#171f33]/50 overflow-hidden">
         <table className="w-full text-sm">
@@ -201,6 +260,7 @@ async function SalesManagerHome({ userId }: { userId: string }) {
               <th className="px-4 py-3 text-right">Ratings</th>
               <th className="px-4 py-3 text-right">Overall</th>
               <th className="px-4 py-3 text-right">Take call?</th>
+              <th className="px-4 py-3 text-right">Active days (30d)</th>
             </tr>
           </thead>
           <tbody>
@@ -219,14 +279,17 @@ async function SalesManagerHome({ userId }: { userId: string }) {
                 <td className="px-4 py-3 text-right">{r.agg.ratingCount}</td>
                 <td className="px-4 py-3 text-right">{r.agg.overall ?? "—"}</td>
                 <td className="px-4 py-3 text-right">{r.agg.takeCallAgainPct === null ? "—" : `${r.agg.takeCallAgainPct}%`}</td>
+                <td className="px-4 py-3 text-right">{stats.frequency[r.id] ?? 0}</td>
               </tr>
             ))}
             {teamRows.length === 0 && (
-              <tr><td colSpan={6} className="px-4 py-6 text-center text-[#9da4c1]">No team members yet.</td></tr>
+              <tr><td colSpan={7} className="px-4 py-6 text-center text-[#9da4c1]">No team members yet.</td></tr>
             )}
           </tbody>
         </table>
       </div>
+
+      <RecentFeedbackList rows={stats.recent} kind="rep" />
 
       <div className="flex gap-3">
         <Link href="/reps" className={btnSecondary}>Browse all reps</Link>
@@ -249,15 +312,330 @@ async function RaterManagerHome({ userId }: { userId: string }) {
   });
   if (!me?.managerProfile) return <p>Manager profile not set.</p>;
 
+  const memberIds = me.managedMemberships
+    .filter((m) => m.member.raterProfile)
+    .map((m) => m.member.id);
+
+  const stats = await loadTeamStats({
+    where: memberIds.length === 0
+      ? null
+      : { raterUserId: { in: memberIds }, createdAt: { gte: new Date(Date.now() - NINETY_DAYS_MS) } },
+  });
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <header>
         <p className="text-xs uppercase tracking-wider text-[#9da4c1]">Your team</p>
         <h1 className="text-3xl font-bold mt-1">{me.name}</h1>
         <p className="text-[#c6c5d4]">Rater Manager · {me.managerProfile.company}</p>
       </header>
+
       <p className="text-[#c6c5d4]">{me.managedMemberships.length} managed raters.</p>
+
+      <ManagerStatsRow
+        totalFeedback={stats.totalFeedback}
+        avgScore={stats.avgScore}
+        resolution={stats.resolution}
+      />
+
+      <TrendChart series={stats.weekly} />
+
+      {stats.dimensions && (
+        <div className="bg-[#131b2e] rounded-xl p-6 border border-[#171f33]/50">
+          <h2 className="font-bold mb-4">Average score by question (last 30 days)</h2>
+          <div className="space-y-2">
+            <Bar label="Responsiveness" value={stats.dimensions.responsiveness} />
+            <Bar label="Product knowledge" value={stats.dimensions.productKnowledge} />
+            <Bar label="Follow-through" value={stats.dimensions.followThrough} />
+            <Bar label="Listening / needs fit" value={stats.dimensions.listeningNeedsFit} />
+            <Bar label="Trust / integrity" value={stats.dimensions.trustIntegrity} />
+          </div>
+        </div>
+      )}
+
+      <RecentFeedbackList rows={stats.recent} kind="rater" />
+
       <Link href="/raters" className={btnSecondary}>Browse raters</Link>
+    </div>
+  );
+}
+
+interface LoadedStats {
+  totalFeedback: MonthOverMonth;
+  avgScore: MonthOverMonth;
+  dimensions: DimensionScores | null;
+  resolution: ResolutionRate;
+  weekly: WeeklyTrendBucket[];
+  frequency: Record<string, number>;
+  recent: RecentRow[];
+}
+
+async function loadTeamStats({ where }: { where: Prisma.RatingWhereInput | null }): Promise<LoadedStats> {
+  const now = new Date();
+  if (!where) {
+    return {
+      totalFeedback: { thisMonth: 0, lastMonth: 0, deltaPct: null },
+      avgScore: { thisMonth: 0, lastMonth: 0, deltaPct: null },
+      dimensions: null,
+      resolution: { atRiskPairs: 0, resolvedPairs: 0, rate: null },
+      weekly: weeklyTrendSeries([], now),
+      frequency: {},
+      recent: [],
+    };
+  }
+  const ratings = await prisma.rating.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    include: {
+      rep: { include: { repProfile: true } },
+      rater: {
+        include: {
+          raterProfile: {
+            include: { industry: { select: { slug: true, name: true } } },
+          },
+        },
+      },
+    },
+  });
+
+  const dims = ratings.map((r) => ({
+    createdAt: r.createdAt,
+    responsiveness: r.responsiveness,
+    productKnowledge: r.productKnowledge,
+    followThrough: r.followThrough,
+    listeningNeedsFit: r.listeningNeedsFit,
+    trustIntegrity: r.trustIntegrity,
+  }));
+  const pairs = ratings.map((r, i) => ({
+    ...dims[i],
+    repUserId: r.repUserId,
+    raterUserId: r.raterUserId,
+  }));
+  const repFreqRows = ratings.map((r) => ({
+    repUserId: r.repUserId,
+    createdAt: r.createdAt,
+  }));
+
+  const recent: RecentRow[] = ratings.slice(0, 10).map((r) => ({
+    id: r.id,
+    createdAt: r.createdAt,
+    responsiveness: r.responsiveness,
+    productKnowledge: r.productKnowledge,
+    followThrough: r.followThrough,
+    listeningNeedsFit: r.listeningNeedsFit,
+    trustIntegrity: r.trustIntegrity,
+    takeCallAgain: r.takeCallAgain,
+    rep: {
+      id: r.rep.id,
+      name: r.rep.name,
+      title: r.rep.repProfile?.title ?? "",
+      company: r.rep.repProfile?.company ?? "",
+    },
+    rater: r.rater.raterProfile
+      ? publicRater({
+          userId: r.rater.id,
+          user: r.rater,
+          title: r.rater.raterProfile.title,
+          company: r.rater.raterProfile.company,
+          industry: r.rater.raterProfile.industry,
+        })
+      : null,
+  }));
+
+  return {
+    totalFeedback: totalFeedbackMoM(ratings, now),
+    avgScore: avgScoreMoM(dims, now),
+    dimensions: teamDimensionAverages(dims, now),
+    resolution: resolutionRate(pairs),
+    weekly: weeklyTrendSeries(dims, now),
+    frequency: repInteractionFrequency(repFreqRows, now),
+    recent,
+  };
+}
+
+function ManagerStatsRow({
+  totalFeedback,
+  avgScore,
+  resolution,
+}: {
+  totalFeedback: MonthOverMonth;
+  avgScore: MonthOverMonth;
+  resolution: ResolutionRate;
+}) {
+  const pctResolved =
+    resolution.rate === null ? null : Math.round(resolution.rate * 100);
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="bg-[#131b2e] rounded-lg border border-[#171f33]/50 p-4">
+        <div className="text-xs uppercase tracking-wider text-[#9da4c1]">Feedback this month</div>
+        <div className="flex items-baseline gap-2 mt-1">
+          <div className="text-2xl font-bold">{totalFeedback.thisMonth}</div>
+          <DeltaPill delta={totalFeedback.deltaPct} />
+        </div>
+        <div className="text-xs text-[#9da4c1] mt-1">vs {totalFeedback.lastMonth} last month</div>
+      </div>
+      <div className="bg-[#131b2e] rounded-lg border border-[#171f33]/50 p-4">
+        <div className="text-xs uppercase tracking-wider text-[#9da4c1]">Avg score this month</div>
+        <div className="flex items-baseline gap-2 mt-1">
+          <div className="text-2xl font-bold">
+            {avgScore.thisMonth === 0 ? "—" : avgScore.thisMonth.toFixed(1)}
+          </div>
+          <DeltaPill delta={avgScore.deltaPct} />
+        </div>
+        <div className="text-xs text-[#9da4c1] mt-1">
+          vs {avgScore.lastMonth === 0 ? "—" : avgScore.lastMonth.toFixed(1)} last month
+        </div>
+      </div>
+      <div className="bg-[#131b2e] rounded-lg border border-[#171f33]/50 p-4">
+        <div className="text-xs uppercase tracking-wider text-[#9da4c1]">Resolution rate</div>
+        <div className="text-2xl font-bold mt-1">
+          {pctResolved === null ? "—" : `${pctResolved}%`}
+        </div>
+        <div className="text-xs text-[#9da4c1] mt-1">
+          {resolution.resolvedPairs}/{resolution.atRiskPairs} at-risk pairs recovered
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DeltaPill({ delta }: { delta: number | null }) {
+  if (delta === null) return <span className="text-xs text-[#9da4c1]">—</span>;
+  const cls =
+    delta > 0
+      ? "bg-[#0f3a2a] text-[#7adfaf]"
+      : delta < 0
+      ? "bg-[#3a1d1d] text-[#f5867a]"
+      : "bg-[#3a2d1d] text-[#f5c97a]";
+  const sign = delta > 0 ? "+" : "";
+  return (
+    <span className={`text-xs px-2 py-0.5 rounded ${cls}`}>
+      {sign}{delta}%
+    </span>
+  );
+}
+
+function TrendChart({ series }: { series: WeeklyTrendBucket[] }) {
+  const W = 100;
+  const H = 60;
+  const PAD_Y = 4;
+  const usable = H - PAD_Y * 2;
+  const stepX = series.length > 1 ? W / (series.length - 1) : W;
+
+  const points = series.map((b, i) => {
+    if (b.avgOverall === null) return null;
+    const x = i * stepX;
+    const y = PAD_Y + (1 - b.avgOverall / 5) * usable;
+    return { x, y, value: b.avgOverall, weekStart: b.weekStart };
+  });
+
+  const segments: Array<Array<{ x: number; y: number }>> = [];
+  let curr: Array<{ x: number; y: number }> = [];
+  for (const p of points) {
+    if (p === null) {
+      if (curr.length > 0) {
+        segments.push(curr);
+        curr = [];
+      }
+    } else {
+      curr.push({ x: p.x, y: p.y });
+    }
+  }
+  if (curr.length > 0) segments.push(curr);
+
+  const hasAny = points.some((p) => p !== null);
+
+  return (
+    <div className="bg-[#131b2e] rounded-xl p-6 border border-[#171f33]/50">
+      <h2 className="font-bold mb-4">Rating trend (last 12 weeks)</h2>
+      {hasAny ? (
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          width="100%"
+          height={H}
+          preserveAspectRatio="none"
+          className="block"
+          role="img"
+          aria-label="Weekly average rating trend"
+        >
+          {segments.map((seg, i) => (
+            <polyline
+              key={i}
+              fill="none"
+              stroke="#bbc3ff"
+              strokeWidth={1}
+              vectorEffect="non-scaling-stroke"
+              points={seg.map((p) => `${p.x},${p.y}`).join(" ")}
+            />
+          ))}
+          {points.map((p, i) =>
+            p === null ? null : (
+              <circle key={i} cx={p.x} cy={p.y} r={1.2} fill="#bbc3ff" />
+            ),
+          )}
+        </svg>
+      ) : (
+        <p className="text-sm text-[#9da4c1]">No feedback in the last 12 weeks.</p>
+      )}
+    </div>
+  );
+}
+
+function RecentFeedbackList({ rows, kind }: { rows: RecentRow[]; kind: "rep" | "rater" }) {
+  if (rows.length === 0) {
+    return (
+      <div className="bg-[#131b2e] rounded-xl p-6 border border-[#171f33]/50">
+        <h2 className="font-bold mb-2">Recent feedback</h2>
+        <p className="text-sm text-[#9da4c1]">No ratings yet.</p>
+      </div>
+    );
+  }
+  return (
+    <div className="bg-[#131b2e] rounded-xl border border-[#171f33]/50 overflow-hidden">
+      <h2 className="font-bold px-6 pt-6 pb-2">Recent feedback</h2>
+      <table className="w-full text-sm">
+        <thead className="bg-[#0b1326]">
+          <tr className="text-left text-xs uppercase tracking-wider text-[#9da4c1]">
+            <th className="px-4 py-3">{kind === "rep" ? "Rep" : "Rated"}</th>
+            <th className="px-4 py-3">Rater</th>
+            <th className="px-4 py-3 text-center">R</th>
+            <th className="px-4 py-3 text-center">PK</th>
+            <th className="px-4 py-3 text-center">FT</th>
+            <th className="px-4 py-3 text-center">LN</th>
+            <th className="px-4 py-3 text-center">TI</th>
+            <th className="px-4 py-3 text-center">Take call?</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.id} className="border-t border-[#171f33]/50">
+              <td className="px-4 py-3">
+                <Link href={`/reps/${r.rep.id}`} className="text-[#dae2fd] hover:text-[#bbc3ff]">
+                  {r.rep.name}
+                </Link>
+                {(r.rep.title || r.rep.company) && (
+                  <div className="text-xs text-[#9da4c1]">{r.rep.title}{r.rep.title && r.rep.company ? " · " : ""}{r.rep.company}</div>
+                )}
+              </td>
+              <td className="px-4 py-3 text-[#c6c5d4]">
+                {r.rater ? `${r.rater.title} @ ${r.rater.company}` : "—"}
+              </td>
+              <td className="px-4 py-3 text-center">{r.responsiveness}</td>
+              <td className="px-4 py-3 text-center">{r.productKnowledge}</td>
+              <td className="px-4 py-3 text-center">{r.followThrough}</td>
+              <td className="px-4 py-3 text-center">{r.listeningNeedsFit}</td>
+              <td className="px-4 py-3 text-center">{r.trustIntegrity}</td>
+              <td className="px-4 py-3 text-center">
+                {r.takeCallAgain ? (
+                  <span className="text-[#7adfaf]">Yes</span>
+                ) : (
+                  <span className="text-[#f5867a]">No</span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
