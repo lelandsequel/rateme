@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
 import { aggregateRatings, type StatusTier } from "@/lib/aggregates";
 import { ConnectionStatus, Role } from "@prisma/client";
 import { ConnectButton } from "./ConnectButton";
+import { OnBehalfRequest, type RaterOption } from "./OnBehalfRequest";
+import { publicRater } from "@/lib/redact";
 
 export const dynamic = "force-dynamic";
 
@@ -83,6 +85,55 @@ export default async function RepDetailPage({
   const viewerIsRater = session?.user?.role === Role.RATER;
   const canRate = viewerIsRater && connectionStatus === ConnectionStatus.ACCEPTED;
 
+  // Sales-manager-on-team gate for the on-behalf request UI.
+  let canRequestOnBehalf = false;
+  let acceptedRaterOptions: RaterOption[] = [];
+  if (
+    session?.user?.role === Role.SALES_MANAGER &&
+    session.user.id
+  ) {
+    const membership = await prisma.teamMembership.findFirst({
+      where: {
+        managerId: session.user.id,
+        memberId: rep.id,
+        acceptedAt: { not: null },
+        endedAt: null,
+      },
+    });
+    if (membership) {
+      canRequestOnBehalf = true;
+      const accepted = await prisma.connection.findMany({
+        where: { repUserId: rep.id, status: ConnectionStatus.ACCEPTED },
+        include: {
+          rater: {
+            include: {
+              raterProfile: {
+                include: { industry: { select: { slug: true, name: true } } },
+              },
+            },
+          },
+        },
+      });
+      acceptedRaterOptions = accepted
+        .filter((c) => c.rater.raterProfile)
+        .map((c) => {
+          const pr = publicRater({
+            userId: c.rater.id,
+            user: c.rater,
+            title: c.rater.raterProfile!.title,
+            company: c.rater.raterProfile!.company,
+            industry: c.rater.raterProfile!.industry,
+          });
+          return {
+            userId: pr.userId,
+            title: pr.title,
+            company: pr.company,
+            industry: pr.industry.name,
+          };
+        });
+    }
+  }
+
   return (
     <div className="space-y-8">
       <header className="flex items-start justify-between">
@@ -148,6 +199,10 @@ export default async function RepDetailPage({
             </Link>
           )}
         </div>
+      )}
+
+      {canRequestOnBehalf && (
+        <OnBehalfRequest forRepUserId={rep.id} raters={acceptedRaterOptions} />
       )}
 
       <div>

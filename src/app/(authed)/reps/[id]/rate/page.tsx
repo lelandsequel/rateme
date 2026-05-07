@@ -8,8 +8,15 @@ import { RatingForm } from "./RatingForm";
 
 export const dynamic = "force-dynamic";
 
-export default async function RatePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function RatePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ ratingRequestId?: string }>;
+}) {
   const { id: repUserId } = await params;
+  const { ratingRequestId } = await searchParams;
   const session = await auth();
   if (!session?.user?.id) redirect(`/login?callbackUrl=/reps/${repUserId}/rate`);
   if (session.user.role !== Role.RATER) {
@@ -22,7 +29,7 @@ export default async function RatePage({ params }: { params: Promise<{ id: strin
   if (!conn || conn.status !== ConnectionStatus.ACCEPTED) {
     return (
       <div className="space-y-3">
-        <h1 className="text-2xl font-bold">You aren't connected to this rep</h1>
+        <h1 className="text-2xl font-bold">You aren&apos;t connected to this rep</h1>
         <p className="text-[#c6c5d4]">Request a connection first; once they accept, you can rate.</p>
       </div>
     );
@@ -41,7 +48,7 @@ export default async function RatePage({ params }: { params: Promise<{ id: strin
         <h1 className="text-3xl font-bold mt-1">{rep.name}</h1>
         <p className="text-[#c6c5d4]">{rep.repProfile.title} · {rep.repProfile.company}</p>
       </header>
-      <RatingForm repUserId={rep.id} />
+      <RatingForm repUserId={rep.id} ratingRequestId={ratingRequestId} />
     </div>
   );
 }
