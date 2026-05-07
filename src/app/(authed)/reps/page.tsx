@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Role, USState } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { FavoriteToggle } from "./[id]/FavoriteToggle";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +37,10 @@ export default async function RepsPage({
   const industrySlug = sp.industry || null;
   const state = sp.state?.toUpperCase() || null;
 
-  const [industries, reps] = await Promise.all([
+  const viewerIsRater = session?.user?.role === Role.RATER;
+  const viewerId = session?.user?.id ?? null;
+
+  const [industries, reps, favoriteRows] = await Promise.all([
     prisma.industry.findMany({ orderBy: { name: "asc" }, select: { slug: true, name: true } }),
     prisma.user.findMany({
       where: {
@@ -70,7 +74,15 @@ export default async function RepsPage({
         },
       },
     }),
+    viewerIsRater && viewerId
+      ? prisma.favorite.findMany({
+          where: { raterUserId: viewerId },
+          select: { repUserId: true },
+        })
+      : Promise.resolve([] as Array<{ repUserId: string }>),
   ]);
+
+  const favoriteSet = new Set(favoriteRows.map((f) => f.repUserId));
 
   return (
     <div className="space-y-6">
@@ -104,7 +116,7 @@ export default async function RepsPage({
             href={`/reps/${r.id}`}
             className="bg-[#131b2e] rounded-lg border border-[#171f33]/50 p-4 hover:border-[#bbc3ff]/40"
           >
-            <div className="flex items-start justify-between">
+            <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="font-bold text-[#dae2fd]">{r.name}</div>
                 <div className="text-sm text-[#c6c5d4]">{r.repProfile!.title} · {r.repProfile!.company}</div>
@@ -112,6 +124,13 @@ export default async function RepsPage({
                   {r.repProfile!.industry.name} · {r.repProfile!.metroArea ?? r.state}
                 </div>
               </div>
+              {viewerIsRater && (
+                <FavoriteToggle
+                  repUserId={r.id}
+                  initialFavorited={favoriteSet.has(r.id)}
+                  size="sm"
+                />
+              )}
             </div>
           </Link>
         ))}

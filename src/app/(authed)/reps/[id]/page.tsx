@@ -7,6 +7,7 @@ import { aggregateRatings, type StatusTier } from "@/lib/aggregates";
 import { ConnectionStatus, Role } from "@prisma/client";
 import { ConnectButton } from "./ConnectButton";
 import { OnBehalfRequest, type RaterOption } from "./OnBehalfRequest";
+import { FavoriteToggle } from "./FavoriteToggle";
 import { publicRater } from "@/lib/redact";
 
 export const dynamic = "force-dynamic";
@@ -72,14 +73,23 @@ export default async function RepDetailPage({
   // Connection check (only relevant for RATER viewers).
   let connectionStatus: ConnectionStatus | null = null;
   let connectionId: string | null = null;
+  let favorited = false;
   if (session?.user?.role === Role.RATER && session.user.id) {
-    const conn = await prisma.connection.findUnique({
-      where: {
-        repUserId_raterUserId: { repUserId: rep.id, raterUserId: session.user.id },
-      },
-    });
+    const [conn, fav] = await Promise.all([
+      prisma.connection.findUnique({
+        where: {
+          repUserId_raterUserId: { repUserId: rep.id, raterUserId: session.user.id },
+        },
+      }),
+      prisma.favorite.findUnique({
+        where: {
+          raterUserId_repUserId: { raterUserId: session.user.id, repUserId: rep.id },
+        },
+      }),
+    ]);
     connectionStatus = conn?.status ?? null;
     connectionId = conn?.id ?? null;
+    favorited = !!fav;
   }
 
   const viewerIsRater = session?.user?.role === Role.RATER;
@@ -151,7 +161,12 @@ export default async function RepDetailPage({
             </p>
           )}
         </div>
-        <span className={`px-3 py-1 rounded ${STATUS_BADGE[agg.status]}`}>{agg.status}</span>
+        <div className="flex items-center gap-2">
+          <span className={`px-3 py-1 rounded ${STATUS_BADGE[agg.status]}`}>{agg.status}</span>
+          {viewerIsRater && (
+            <FavoriteToggle repUserId={rep.id} initialFavorited={favorited} />
+          )}
+        </div>
       </header>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
