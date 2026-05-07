@@ -21,11 +21,13 @@ declare module "next-auth" {
     user: {
       id: string;
       role: string;
+      avatarUrl?: string | null;
     } & DefaultSession["user"];
   }
   interface User {
     id?: string;
     role?: string;
+    avatarUrl?: string | null;
   }
 }
 
@@ -33,6 +35,7 @@ declare module "next-auth/jwt" {
   interface JWT {
     userId?: string;
     role?: string;
+    avatarUrl?: string | null;
   }
 }
 
@@ -105,15 +108,31 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email,
           name: user.name,
           role: user.role,
+          avatarUrl: user.avatarUrl,
         };
       },
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.userId = (user as { id?: string }).id ?? token.userId;
         token.role = (user as { role?: string }).role ?? token.role;
+        token.avatarUrl =
+          (user as { avatarUrl?: string | null }).avatarUrl ?? token.avatarUrl ?? null;
+      }
+      // Refresh avatarUrl on `update()` calls (e.g. after avatar upload).
+      // The session callback uses whatever we stash here.
+      if (trigger === "update" && token.userId && HAS_DB) {
+        try {
+          const fresh = await prisma.user.findUnique({
+            where: { id: token.userId as string },
+            select: { avatarUrl: true },
+          });
+          if (fresh) token.avatarUrl = fresh.avatarUrl;
+        } catch {
+          // best-effort
+        }
       }
       return token;
     },
@@ -121,6 +140,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (token && session.user) {
         session.user.id = (token.userId as string) ?? "";
         session.user.role = (token.role as string) ?? "REP";
+        session.user.avatarUrl = (token.avatarUrl as string | null | undefined) ?? null;
       }
       return session;
     },
