@@ -14,6 +14,7 @@ import { generateRecap } from "@/lib/ai-recap";
 import { RecapCard } from "@/components/RecapCard";
 import { ConnectionStatus, Role } from "@prisma/client";
 import { InviteRater } from "./InviteRater";
+import { RankingsBar } from "./RankingsBar";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -87,6 +88,8 @@ async function RepHome({ userId }: { userId: string }) {
         <Stat label="Overall score" value={agg.overall ?? "—"} />
         <Stat label="Take call again?" value={agg.takeCallAgainPct === null ? "—" : `${agg.takeCallAgainPct}%`} />
       </div>
+
+      <RankingsBar userId={userId} role="REP" />
 
       {agg.averages && (
         <div className="bg-[#131b2e] rounded-xl p-6 border border-[#171f33]/50">
@@ -168,6 +171,8 @@ async function RaterHome({ userId }: { userId: string }) {
         <Stat label="Pending requests" value={pendingCount} />
         <Stat label="Ratings given" value={raterAgg.ratingsGivenCount} />
       </div>
+
+      <RankingsBar userId={userId} role="RATER" />
 
       <RecapCard recap={recap} />
 
