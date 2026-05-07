@@ -76,8 +76,8 @@ export function SignupForm({ industries }: { industries: Industry[] }) {
         setSubmitting(false);
         return;
       }
-      router.push("/home");
-      router.refresh();
+      // Hard navigation — see LoginForm for why router.push isn't enough.
+      window.location.assign("/home");
     } catch {
       setError("Network error. Try again.");
       setSubmitting(false);

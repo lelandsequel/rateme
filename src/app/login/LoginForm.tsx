@@ -2,15 +2,13 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
 
 interface Props {
   callbackUrl?: string;
   error?: string;
 }
 
-export function LoginForm({ callbackUrl = "/", error }: Props) {
-  const router = useRouter();
+export function LoginForm({ callbackUrl = "/home", error }: Props) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -33,8 +31,10 @@ export function LoginForm({ callbackUrl = "/", error }: Props) {
         setSubmitting(false);
         return;
       }
-      router.push(callbackUrl);
-      router.refresh();
+      // Hard navigation — router.push(...) sometimes fires before the
+      // browser commits the auth cookie set by the credentials callback,
+      // which sends auth() back null on the next page and loops to /login.
+      window.location.assign(callbackUrl);
     } catch {
       setFormError("Sign-in failed. Please try again.");
       setSubmitting(false);
