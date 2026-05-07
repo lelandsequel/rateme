@@ -8,6 +8,7 @@ import { ConnectionStatus, Role } from "@prisma/client";
 import { ConnectButton } from "./ConnectButton";
 import { OnBehalfRequest, type RaterOption } from "./OnBehalfRequest";
 import { FavoriteToggle } from "./FavoriteToggle";
+import { PublicLinkButton } from "./PublicLinkButton";
 import { publicRater } from "@/lib/redact";
 
 export const dynamic = "force-dynamic";
@@ -93,6 +94,7 @@ export default async function RepDetailPage({
   }
 
   const viewerIsRater = session?.user?.role === Role.RATER;
+  const viewerIsSelf = session?.user?.id === rep.id;
   const canRate = viewerIsRater && connectionStatus === ConnectionStatus.ACCEPTED;
 
   // Sales-manager-on-team gate for the on-behalf request UI.
@@ -176,6 +178,7 @@ export default async function RepDetailPage({
           {viewerIsRater && (
             <FavoriteToggle repUserId={rep.id} initialFavorited={favorited} />
           )}
+          {viewerIsSelf && <PublicLinkButton repId={rep.id} />}
         </div>
       </header>
 
