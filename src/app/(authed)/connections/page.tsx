@@ -80,7 +80,7 @@ export default async function ConnectionsPage() {
   return (
     <div className="space-y-8">
       <header>
-        <p className="text-xs uppercase tracking-wider text-[#9da4c1]">Inbox</p>
+        <p className="text-xs uppercase tracking-wider text-[#94a3b8]">Inbox</p>
         <h1 className="text-3xl font-bold mt-1">Connections</h1>
       </header>
 
@@ -95,26 +95,26 @@ export default async function ConnectionsPage() {
               .map((rr) => (
                 <li
                   key={rr.id}
-                  className="bg-[#131b2e] rounded-lg border border-[#171f33]/50 p-4 flex items-start justify-between"
+                  className="bg-[#ffffff] rounded-lg border border-[#e5e7eb] p-4 flex items-start justify-between"
                 >
                   <div>
                     <Link
                       href={`/reps/${rr.forRep.id}`}
-                      className="font-bold text-[#dae2fd] hover:text-[#bbc3ff]"
+                      className="font-bold text-[#0f172a] hover:text-[#dc2626]"
                     >
                       {rr.forRep.name}
                     </Link>
-                    <div className="text-sm text-[#c6c5d4]">
+                    <div className="text-sm text-[#475569]">
                       {rr.forRep.repProfile?.title} ·{" "}
                       {rr.forRep.repProfile?.company}
                     </div>
-                    <div className="text-xs text-[#9da4c1] mt-1">
+                    <div className="text-xs text-[#94a3b8] mt-1">
                       {rr.type === "ON_BEHALF" ? "Manager-requested" : "Invitation"}
                     </div>
                   </div>
                   <Link
                     href={`/reps/${rr.forRep.id}/rate?ratingRequestId=${rr.id}`}
-                    className="text-xs px-3 py-1.5 rounded-lg bg-[#bbc3ff] text-[#0b1326] font-medium hover:bg-[#bbc3ff]/80"
+                    className="text-xs px-3 py-1.5 rounded-lg bg-[#dc2626] text-[#ffffff] font-medium hover:bg-[#b91c1c]"
                   >
                     Rate now
                   </Link>
@@ -145,7 +145,7 @@ export default async function ConnectionsPage() {
           <ul className="space-y-2">
             {outgoingPending.map((c) => (
               <Row key={c.id} c={c} userId={userId} viewerIsRep={viewerIsRep} viewerIsRater={viewerIsRater}>
-                <span className="text-xs text-[#9da4c1]">Awaiting response</span>
+                <span className="text-xs text-[#94a3b8]">Awaiting response</span>
               </Row>
             ))}
           </ul>
@@ -161,7 +161,7 @@ export default async function ConnectionsPage() {
               <Row key={c.id} c={c} userId={userId} viewerIsRep={viewerIsRep} viewerIsRater={viewerIsRater}>
                 <div className="flex items-center gap-2">
                   {viewerIsRater && (
-                    <Link href={`/reps/${c.repUserId}/rate`} className="text-xs px-3 py-1.5 rounded-lg bg-[#bbc3ff] text-[#0b1326] font-medium hover:bg-[#bbc3ff]/80">
+                    <Link href={`/reps/${c.repUserId}/rate`} className="text-xs px-3 py-1.5 rounded-lg bg-[#dc2626] text-[#ffffff] font-medium hover:bg-[#b91c1c]">
                       Rate
                     </Link>
                   )}
@@ -178,7 +178,7 @@ export default async function ConnectionsPage() {
           <ul className="space-y-2">
             {ended.map((c) => (
               <Row key={c.id} c={c} userId={userId} viewerIsRep={viewerIsRep} viewerIsRater={viewerIsRater}>
-                <span className="text-xs text-[#9da4c1]">{c.status}</span>
+                <span className="text-xs text-[#94a3b8]">{c.status}</span>
               </Row>
             ))}
           </ul>
@@ -224,13 +224,13 @@ function Row({
   if (otherIsRep) {
     // I'm the rater; show rep in full.
     return (
-      <li className="bg-[#131b2e] rounded-lg border border-[#171f33]/50 p-4 flex items-start justify-between">
+      <li className="bg-[#ffffff] rounded-lg border border-[#e5e7eb] p-4 flex items-start justify-between">
         <div>
-          <Link href={`/reps/${c.rep.id}`} className="font-bold text-[#dae2fd] hover:text-[#bbc3ff]">{c.rep.name}</Link>
-          <div className="text-sm text-[#c6c5d4]">
+          <Link href={`/reps/${c.rep.id}`} className="font-bold text-[#0f172a] hover:text-[#dc2626]">{c.rep.name}</Link>
+          <div className="text-sm text-[#475569]">
             {c.rep.repProfile?.title} · {c.rep.repProfile?.company}
           </div>
-          <div className="text-xs text-[#9da4c1] mt-1">{c.rep.repProfile?.industry.name}</div>
+          <div className="text-xs text-[#94a3b8] mt-1">{c.rep.repProfile?.industry.name}</div>
         </div>
         {children}
       </li>
@@ -238,11 +238,11 @@ function Row({
   }
   // I'm the rep; show rater REDACTED.
   return (
-    <li className="bg-[#131b2e] rounded-lg border border-[#171f33]/50 p-4 flex items-start justify-between">
+    <li className="bg-[#ffffff] rounded-lg border border-[#e5e7eb] p-4 flex items-start justify-between">
       <div>
-        <div className="font-bold text-[#dae2fd]">{c.rater.raterProfile?.title ?? "?"}</div>
-        <div className="text-sm text-[#c6c5d4]">{c.rater.raterProfile?.company ?? "?"}</div>
-        <div className="text-xs text-[#9da4c1] mt-1">{c.rater.raterProfile?.industry.name ?? "?"}</div>
+        <div className="font-bold text-[#0f172a]">{c.rater.raterProfile?.title ?? "?"}</div>
+        <div className="text-sm text-[#475569]">{c.rater.raterProfile?.company ?? "?"}</div>
+        <div className="text-xs text-[#94a3b8] mt-1">{c.rater.raterProfile?.industry.name ?? "?"}</div>
       </div>
       {children}
     </li>
@@ -259,5 +259,5 @@ function Section({ title, children, accent }: { title: string; children: React.R
 }
 
 function Empty({ children }: { children: React.ReactNode }) {
-  return <p className="text-sm text-[#9da4c1] italic">{children}</p>;
+  return <p className="text-sm text-[#94a3b8] italic">{children}</p>;
 }

@@ -248,6 +248,9 @@ model Rating {
   // Binary brutal-honesty flag.
   takeCallAgain       Boolean
 
+  // Optional reviewer-written comment (≤500 chars enforced in app code).
+  comment             String?
+
   // Optional source: was this rating fulfilled via a RatingRequest?
   ratingRequestId     String?    @unique
   ratingRequest       RatingRequest? @relation(fields: [ratingRequestId], references: [id])

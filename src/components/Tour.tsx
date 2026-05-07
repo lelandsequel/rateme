@@ -28,7 +28,7 @@ const STEPS: TourStep[] = [
     title: "Overview Dashboard",
     tag: "DASHBOARD",
     engine: "QUASAR",
-    engineColor: "text-[#bbc3ff]",
+    engineColor: "text-[#dc2626]",
     body: "Live composite scores for every rep, team averages, and the signal feed. The QUASAR engine re-scores on every new session — what you see here is always current.",
   },
   {
@@ -37,7 +37,7 @@ const STEPS: TourStep[] = [
     title: "Rep Roster",
     tag: "REPS",
     engine: "QUASAR",
-    engineColor: "text-[#bbc3ff]",
+    engineColor: "text-[#dc2626]",
     body: "Full rep list ranked by QUASAR score. The confidence band tells you how much session data backs each number. Low confidence = needs more calls in the system before the score firms up.",
   },
   {
@@ -46,7 +46,7 @@ const STEPS: TourStep[] = [
     title: "Rep Profile",
     tag: "REP DETAIL",
     engine: "QUASAR + NEBULA",
-    engineColor: "text-[#bbc3ff]",
+    engineColor: "text-[#dc2626]",
     body: "The circular gauge is the composite score. Below it: 4 QUASAR dimensions (Call Efficiency, Engagement, Conversion, Activity), a full score history timeline, and every session with sentiment scoring from NEBULA.",
   },
   {
@@ -55,7 +55,7 @@ const STEPS: TourStep[] = [
     title: "Team Workbench",
     tag: "TEAMS",
     engine: "QUASAR",
-    engineColor: "text-[#bbc3ff]",
+    engineColor: "text-[#dc2626]",
     body: "Individual QUASAR scores roll up to team aggregates. Spot which teams are accelerating vs. stalling, and click any rep to drill in without losing context.",
   },
   {
@@ -64,7 +64,7 @@ const STEPS: TourStep[] = [
     title: "Signal Inbox",
     tag: "ALERTS",
     engine: "PULSAR",
-    engineColor: "text-red-400",
+    engineColor: "text-[#dc2626]",
     body: "PULSAR watches every incoming session for anomalies. Three signal types: SCORE_DROP (coach now), ANOMALY (unusual pattern — worth reviewing), MILESTONE (rep crossed a threshold — celebrate it). Fires before your manager notices.",
   },
   {
@@ -82,7 +82,7 @@ const STEPS: TourStep[] = [
     title: "Recruiter Intelligence",
     tag: "HIRING",
     engine: "QUASAR",
-    engineColor: "text-[#bbc3ff]",
+    engineColor: "text-[#dc2626]",
     body: "The same QUASAR model that scores your active reps predicts how a candidate will perform before they start. Compare candidates head-to-head against your top performers — see exactly where the gap is.",
   },
   {
@@ -91,7 +91,7 @@ const STEPS: TourStep[] = [
     title: "Trust & Provenance",
     tag: "GOVERNANCE",
     engine: "COSMIC",
-    engineColor: "text-[#94ccff]",
+    engineColor: "text-[#0f172a]",
     body: "Every score is traceable. The Trust layer shows which data sources fed each calculation, when they synced, and the governance rules COSMIC operates under. Full audit trail — no black boxes.",
   },
   {
@@ -177,7 +177,7 @@ export function Tour() {
       {/* Trigger button — always visible */}
       <button
         onClick={startTour}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-[#bbc3ff] bg-[#001d92]/40 hover:bg-[#001d92]/70 border border-[#bbc3ff]/20 hover:border-[#bbc3ff]/50 transition-all"
+        className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-[#dc2626] bg-[#fee2e2] hover:bg-[#fecaca] border border-[#fecaca] transition-all"
         title="Take the guided tour"
       >
         <BookOpen size={14} />
@@ -189,17 +189,17 @@ export function Tour() {
         <>
           {/* Backdrop */}
           <div
-            className="fixed inset-0 bg-[#0b1326]/60 backdrop-blur-[2px] z-[90]"
+            className="fixed inset-0 bg-[#f8fafc] backdrop-blur-[2px] z-[90]"
             onClick={dismiss}
           />
 
           {/* Card */}
           <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] w-[480px] max-w-[calc(100vw-2rem)]">
-            <div className="bg-[#131b2e] border border-[#2d3449] rounded-2xl shadow-2xl overflow-hidden">
+            <div className="bg-[#ffffff] border border-[#e5e7eb] rounded-2xl shadow-2xl overflow-hidden">
               {/* Progress bar */}
-              <div className="h-1 bg-[#0b1326]">
+              <div className="h-1 bg-[#ffffff]">
                 <div
-                  className="h-full bg-gradient-to-r from-[#001d92] to-[#bbc3ff] transition-all duration-300"
+                  className="h-full bg-gradient-to-r from-[#dc2626] to-[#dc2626] transition-all duration-300"
                   style={{ width: `${((step + 1) / STEPS.length) * 100}%` }}
                 />
               </div>
@@ -208,12 +208,12 @@ export function Tour() {
                 {/* Header row */}
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold tracking-[0.15em] text-[#c6c5d4]/60 uppercase">
+                    <span className="text-[10px] font-bold tracking-[0.15em] text-[#94a3b8] uppercase">
                       {current.tag}
                     </span>
                     {current.engine && (
                       <>
-                        <span className="text-[#c6c5d4]/30">·</span>
+                        <span className="text-[#475569]/30">·</span>
                         <span className={`text-[10px] font-bold tracking-[0.15em] uppercase ${current.engineColor}`}>
                           {current.engine}
                         </span>
@@ -221,12 +221,12 @@ export function Tour() {
                     )}
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-xs text-[#c6c5d4]/50">
+                    <span className="text-xs text-[#94a3b8]">
                       {step + 1} / {STEPS.length}
                     </span>
                     <button
                       onClick={dismiss}
-                      className="text-[#c6c5d4]/50 hover:text-[#dae2fd] transition-colors"
+                      className="text-[#94a3b8] hover:text-[#0f172a] transition-colors"
                     >
                       <X size={16} />
                     </button>
@@ -234,15 +234,15 @@ export function Tour() {
                 </div>
 
                 {/* Title */}
-                <h3 className="text-xl font-headline font-bold text-[#dae2fd] mb-3">
+                <h3 className="text-xl font-headline font-bold text-[#0f172a] mb-3">
                   {step === 0 && (
-                    <Sparkles size={18} className="inline mr-2 text-[#bbc3ff]" />
+                    <Sparkles size={18} className="inline mr-2 text-[#dc2626]" />
                   )}
                   {current.title}
                 </h3>
 
                 {/* Body */}
-                <p className="text-sm text-[#c6c5d4] leading-relaxed mb-6">
+                <p className="text-sm text-[#475569] leading-relaxed mb-6">
                   {current.body}
                 </p>
 
@@ -250,7 +250,7 @@ export function Tour() {
                 <div className="flex items-center justify-between">
                   <button
                     onClick={dismiss}
-                    className="text-xs text-[#c6c5d4]/50 hover:text-[#c6c5d4] transition-colors"
+                    className="text-xs text-[#94a3b8] hover:text-[#475569] transition-colors"
                   >
                     Skip tour
                   </button>
@@ -259,7 +259,7 @@ export function Tour() {
                     {!isFirst && (
                       <button
                         onClick={prev}
-                        className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm text-[#c6c5d4] bg-[#0b1326] hover:bg-[#2d3449] transition-colors"
+                        className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm text-[#475569] bg-[#ffffff] hover:bg-[#e5e7eb] transition-colors"
                       >
                         <ChevronLeft size={16} />
                         Back
@@ -267,7 +267,7 @@ export function Tour() {
                     )}
                     <button
                       onClick={next}
-                      className="flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium bg-[#bbc3ff] text-[#0b1326] hover:bg-[#bbc3ff]/80 transition-colors"
+                      className="flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium bg-[#dc2626] text-[#ffffff] hover:bg-[#b91c1c] transition-colors"
                     >
                       {isLast ? "Done" : "Next"}
                       {!isLast && <ChevronRight size={16} />}
@@ -284,10 +284,10 @@ export function Tour() {
                     onClick={() => navigate(i)}
                     className={`rounded-full transition-all ${
                       i === step
-                        ? "w-4 h-1.5 bg-[#bbc3ff]"
+                        ? "w-4 h-1.5 bg-[#dc2626]"
                         : i < step
-                        ? "w-1.5 h-1.5 bg-[#bbc3ff]/40"
-                        : "w-1.5 h-1.5 bg-[#2d3449]"
+                        ? "w-1.5 h-1.5 bg-[#fecaca]"
+                        : "w-1.5 h-1.5 bg-[#e5e7eb]"
                     }`}
                   />
                 ))}
@@ -295,7 +295,7 @@ export function Tour() {
             </div>
 
             {/* Keyboard hint */}
-            <p className="text-center text-[10px] text-[#c6c5d4]/30 mt-2">
+            <p className="text-center text-[10px] text-[#475569]/30 mt-2">
               ← → arrow keys to navigate · Esc to close
             </p>
           </div>

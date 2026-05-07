@@ -17,15 +17,15 @@ export function RecapCard({ recap, title = "30-day recap" }: Props) {
   ].filter((s) => s.items.length > 0);
 
   return (
-    <div className="bg-[#131b2e] rounded-xl p-6 border border-[#171f33]/50 space-y-4">
+    <div className="bg-[#ffffff] rounded-xl p-6 border border-[#e5e7eb] space-y-4">
       <div className="flex items-baseline justify-between">
         <h2 className="font-bold">{title}</h2>
-        <span className="text-xs text-[#9da4c1]">
+        <span className="text-xs text-[#94a3b8]">
           {recap.source === "openai" ? "Powered by AI" : "Deterministic summary"}
         </span>
       </div>
 
-      <p className="text-[#dae2fd]">{recap.performanceSummary}</p>
+      <p className="text-[#0f172a]">{recap.performanceSummary}</p>
 
       <div className="grid sm:grid-cols-3 gap-3 text-sm">
         <MetaRow label="Frequency" value={recap.frequency} />
@@ -46,9 +46,9 @@ export function RecapCard({ recap, title = "30-day recap" }: Props) {
 
 function MetaRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-[#0b1326] rounded-lg p-3 border border-[#171f33]/50">
-      <div className="text-xs uppercase tracking-wider text-[#9da4c1]">{label}</div>
-      <div className="mt-1 text-[#c6c5d4]">{value}</div>
+    <div className="bg-[#ffffff] rounded-lg p-3 border border-[#e5e7eb]">
+      <div className="text-xs uppercase tracking-wider text-[#94a3b8]">{label}</div>
+      <div className="mt-1 text-[#475569]">{value}</div>
     </div>
   );
 }
@@ -56,11 +56,11 @@ function MetaRow({ label, value }: { label: string; value: string }) {
 function Section({ heading, items }: { heading: string; items: string[] }) {
   return (
     <div>
-      <div className="text-xs uppercase tracking-wider text-[#9da4c1] mb-2">{heading}</div>
+      <div className="text-xs uppercase tracking-wider text-[#94a3b8] mb-2">{heading}</div>
       <ul className="space-y-1">
         {items.map((it, i) => (
-          <li key={i} className="text-sm text-[#dae2fd]">
-            <span className="text-[#bbc3ff]">•</span> {it}
+          <li key={i} className="text-sm text-[#0f172a]">
+            <span className="text-[#dc2626]">•</span> {it}
           </li>
         ))}
       </ul>

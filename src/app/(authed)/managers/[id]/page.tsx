@@ -107,23 +107,23 @@ export default async function ManagerProfilePage({
     <div className="space-y-8">
       <header className="flex items-start justify-between">
         <div>
-          <p className="text-xs uppercase tracking-wider text-[#9da4c1]">
+          <p className="text-xs uppercase tracking-wider text-[#94a3b8]">
             Manager profile
           </p>
           <h1 className="text-3xl font-bold mt-1">{manager.name}</h1>
-          <p className="text-[#c6c5d4]">
+          <p className="text-[#475569]">
             {roleLabel}
             {manager.managerProfile!.company
               ? ` · ${manager.managerProfile!.company}`
               : ""}
           </p>
-          <p className="text-xs text-[#9da4c1] mt-1">
+          <p className="text-xs text-[#94a3b8] mt-1">
             {manager.state} · member since{" "}
             {new Date(manager.createdAt).toLocaleDateString()}
           </p>
-          <p className="text-xs text-[#9da4c1] mt-1">{manager.email}</p>
+          <p className="text-xs text-[#94a3b8] mt-1">{manager.email}</p>
         </div>
-        <span className="px-3 py-1 rounded bg-[#1d3a5e] text-[#7ab3f5] text-sm">
+        <span className="px-3 py-1 rounded bg-[#e0f2fe] text-[#075985] text-sm">
           {roleLabel}
         </span>
       </header>
@@ -144,7 +144,7 @@ export default async function ManagerProfilePage({
           {isSalesManager ? "Reps" : "Raters"} ({teamSize})
         </h2>
         {memberships.length === 0 ? (
-          <p className="text-[#9da4c1]">No active team members.</p>
+          <p className="text-[#94a3b8]">No active team members.</p>
         ) : isSalesManager ? (
           <ul className="space-y-2">
             {memberships
@@ -152,16 +152,16 @@ export default async function ManagerProfilePage({
               .map((m) => (
                 <li
                   key={m.id}
-                  className="bg-[#131b2e] rounded-lg border border-[#171f33]/50 p-4"
+                  className="bg-[#ffffff] rounded-lg border border-[#e5e7eb] p-4"
                 >
                   <Link
                     href={`/reps/${m.member.id}`}
-                    className="block hover:text-[#bbc3ff]"
+                    className="block hover:text-[#dc2626]"
                   >
-                    <div className="font-bold text-[#dae2fd]">
+                    <div className="font-bold text-[#0f172a]">
                       {m.member.name}
                     </div>
-                    <div className="text-sm text-[#c6c5d4]">
+                    <div className="text-sm text-[#475569]">
                       {m.member.repProfile!.company} ·{" "}
                       {m.member.repProfile!.industry.name}
                     </div>
@@ -184,12 +184,12 @@ export default async function ManagerProfilePage({
                 return (
                   <li
                     key={m.id}
-                    className="bg-[#131b2e] rounded-lg border border-[#171f33]/50 p-4"
+                    className="bg-[#ffffff] rounded-lg border border-[#e5e7eb] p-4"
                   >
-                    <div className="text-sm text-[#dae2fd]">
+                    <div className="text-sm text-[#0f172a]">
                       {pr.title} · {pr.company}
                     </div>
-                    <div className="text-xs text-[#9da4c1] mt-1">
+                    <div className="text-xs text-[#94a3b8] mt-1">
                       {pr.industry.name} · {pr.state}
                     </div>
                   </li>
@@ -210,8 +210,8 @@ function Stat({
   value: React.ReactNode;
 }) {
   return (
-    <div className="bg-[#131b2e] rounded-lg border border-[#171f33]/50 p-4">
-      <div className="text-xs uppercase tracking-wider text-[#9da4c1]">
+    <div className="bg-[#ffffff] rounded-lg border border-[#e5e7eb] p-4">
+      <div className="text-xs uppercase tracking-wider text-[#94a3b8]">
         {label}
       </div>
       <div className="text-2xl font-bold mt-1">{value}</div>

@@ -154,9 +154,9 @@ async function ManagerView({ userId, role }: { userId: string; role: string }) {
   return (
     <div className="space-y-8">
       <header>
-        <p className="text-xs uppercase tracking-wider text-[#9da4c1]">Manager</p>
+        <p className="text-xs uppercase tracking-wider text-[#94a3b8]">Manager</p>
         <h1 className="text-3xl font-bold mt-1">Team</h1>
-        <p className="text-sm text-[#9da4c1] mt-1">
+        <p className="text-sm text-[#94a3b8] mt-1">
           Invite {targetRoleLabel.toLowerCase()} by email. They&rsquo;ll see a pending invite on their /team page and can accept or decline.
         </p>
       </header>
@@ -173,12 +173,12 @@ async function ManagerView({ userId, role }: { userId: string; role: string }) {
             {pending.map((m) => (
               <li
                 key={m.id}
-                className="bg-[#131b2e] rounded-lg border border-[#171f33]/50 p-4 flex items-start justify-between"
+                className="bg-[#ffffff] rounded-lg border border-[#e5e7eb] p-4 flex items-start justify-between"
               >
                 <div>
-                  <div className="font-bold text-[#dae2fd]">{m.member.name}</div>
-                  <div className="text-sm text-[#c6c5d4]">{m.member.email}</div>
-                  <div className="text-xs text-[#9da4c1] mt-1">
+                  <div className="font-bold text-[#0f172a]">{m.member.name}</div>
+                  <div className="text-sm text-[#475569]">{m.member.email}</div>
+                  <div className="text-xs text-[#94a3b8] mt-1">
                     Invited {new Date(m.invitedAt).toLocaleDateString()}
                   </div>
                 </div>
@@ -201,21 +201,21 @@ async function ManagerView({ userId, role }: { userId: string; role: string }) {
               return (
                 <li
                   key={m.id}
-                  className="bg-[#131b2e] rounded-lg border border-[#171f33]/50 p-4 flex items-start justify-between"
+                  className="bg-[#ffffff] rounded-lg border border-[#e5e7eb] p-4 flex items-start justify-between"
                 >
                   <div>
-                    <div className="font-bold text-[#dae2fd]">{m.member.name}</div>
-                    <div className="text-sm text-[#c6c5d4]">
+                    <div className="font-bold text-[#0f172a]">{m.member.name}</div>
+                    <div className="text-sm text-[#475569]">
                       {profile?.title} · {profile?.company}
                     </div>
-                    <div className="text-xs text-[#9da4c1] mt-1">
+                    <div className="text-xs text-[#94a3b8] mt-1">
                       {profile?.industry.name}
                       {ratingCount !== null && (
                         <> · {ratingCount} rating{ratingCount === 1 ? "" : "s"}</>
                       )}
                     </div>
                   </div>
-                  <span className="text-xs text-[#7adfaf]">active</span>
+                  <span className="text-xs text-[#16a34a]">active</span>
                 </li>
               );
             })}
@@ -232,14 +232,14 @@ async function ManagerView({ userId, role }: { userId: string; role: string }) {
               {connectedRaters.map((r) => (
                 <li
                   key={r.userId}
-                  className="bg-[#131b2e] rounded-lg border border-[#171f33]/50 p-4"
+                  className="bg-[#ffffff] rounded-lg border border-[#e5e7eb] p-4"
                 >
-                  <div className="font-bold text-[#dae2fd]">{r.title}</div>
-                  <div className="text-sm text-[#c6c5d4]">{r.company}</div>
-                  <div className="text-xs text-[#9da4c1] mt-1">
+                  <div className="font-bold text-[#0f172a]">{r.title}</div>
+                  <div className="text-sm text-[#475569]">{r.company}</div>
+                  <div className="text-xs text-[#94a3b8] mt-1">
                     {r.industry.name} · {r.state}
                   </div>
-                  <div className="text-xs text-[#9da4c1] mt-2">
+                  <div className="text-xs text-[#94a3b8] mt-2">
                     Connected to:{" "}
                     {r.connectedToReps.map((rep) => rep.repName).join(", ")}
                   </div>
@@ -259,19 +259,19 @@ async function ManagerView({ userId, role }: { userId: string; role: string }) {
               {connectedReps.map((rep) => (
                 <li
                   key={rep.id}
-                  className="bg-[#131b2e] rounded-lg border border-[#171f33]/50 p-4"
+                  className="bg-[#ffffff] rounded-lg border border-[#e5e7eb] p-4"
                 >
                   <Link
                     href={`/reps/${rep.id}`}
-                    className="font-bold text-[#dae2fd] hover:text-[#bbc3ff]"
+                    className="font-bold text-[#0f172a] hover:text-[#dc2626]"
                   >
                     {rep.name}
                   </Link>
-                  <div className="text-sm text-[#c6c5d4]">
+                  <div className="text-sm text-[#475569]">
                     {rep.title} · {rep.company}
                   </div>
-                  <div className="text-xs text-[#9da4c1] mt-1">{rep.industry.name}</div>
-                  <div className="text-xs text-[#9da4c1] mt-2">
+                  <div className="text-xs text-[#94a3b8] mt-1">{rep.industry.name}</div>
+                  <div className="text-xs text-[#94a3b8] mt-2">
                     Connected to:{" "}
                     {rep.connectedToRaters
                       .map((r) => `${r.raterTitle} @ ${r.raterCompany}`)
@@ -302,9 +302,9 @@ async function MemberView({ userId }: { userId: string }) {
   return (
     <div className="space-y-8">
       <header>
-        <p className="text-xs uppercase tracking-wider text-[#9da4c1]">Inbox</p>
+        <p className="text-xs uppercase tracking-wider text-[#94a3b8]">Inbox</p>
         <h1 className="text-3xl font-bold mt-1">Team</h1>
-        <p className="text-sm text-[#9da4c1] mt-1">
+        <p className="text-sm text-[#94a3b8] mt-1">
           Manager invitations show up here. Accept to join their team; you can leave at any time.
         </p>
       </header>
@@ -320,14 +320,14 @@ async function MemberView({ userId }: { userId: string }) {
             {pending.map((m) => (
               <li
                 key={m.id}
-                className="bg-[#131b2e] rounded-lg border border-[#171f33]/50 p-4 flex items-start justify-between"
+                className="bg-[#ffffff] rounded-lg border border-[#e5e7eb] p-4 flex items-start justify-between"
               >
                 <div>
-                  <div className="font-bold text-[#dae2fd]">{m.manager.name}</div>
-                  <div className="text-sm text-[#c6c5d4]">
+                  <div className="font-bold text-[#0f172a]">{m.manager.name}</div>
+                  <div className="text-sm text-[#475569]">
                     {m.manager.managerProfile?.company ?? "—"}
                   </div>
-                  <div className="text-xs text-[#9da4c1] mt-1">
+                  <div className="text-xs text-[#94a3b8] mt-1">
                     {m.manager.managerProfile?.managesType === "REP_MANAGER"
                       ? "Sales Manager"
                       : m.manager.managerProfile?.managesType === "RATER_MANAGER"
@@ -351,14 +351,14 @@ async function MemberView({ userId }: { userId: string }) {
             {active.map((m) => (
               <li
                 key={m.id}
-                className="bg-[#131b2e] rounded-lg border border-[#171f33]/50 p-4 flex items-start justify-between"
+                className="bg-[#ffffff] rounded-lg border border-[#e5e7eb] p-4 flex items-start justify-between"
               >
                 <div>
-                  <div className="font-bold text-[#dae2fd]">{m.manager.name}</div>
-                  <div className="text-sm text-[#c6c5d4]">
+                  <div className="font-bold text-[#0f172a]">{m.manager.name}</div>
+                  <div className="text-sm text-[#475569]">
                     {m.manager.managerProfile?.company ?? "—"}
                   </div>
-                  <div className="text-xs text-[#9da4c1] mt-1">
+                  <div className="text-xs text-[#94a3b8] mt-1">
                     Joined{" "}
                     {m.acceptedAt
                       ? new Date(m.acceptedAt).toLocaleDateString()
@@ -395,5 +395,5 @@ function Section({
 }
 
 function Empty({ children }: { children: React.ReactNode }) {
-  return <p className="text-sm text-[#9da4c1] italic">{children}</p>;
+  return <p className="text-sm text-[#94a3b8] italic">{children}</p>;
 }

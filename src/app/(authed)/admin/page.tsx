@@ -46,7 +46,7 @@ export default async function AdminLandingPage() {
   return (
     <div className="space-y-8">
       <header>
-        <p className="text-xs uppercase tracking-wider text-[#9da4c1]">
+        <p className="text-xs uppercase tracking-wider text-[#94a3b8]">
           Admin
         </p>
         <h1 className="text-3xl font-bold mt-1">Platform stats</h1>
@@ -62,15 +62,15 @@ export default async function AdminLandingPage() {
         />
       </div>
 
-      <div className="bg-[#131b2e] rounded-xl p-6 border border-[#171f33]/50">
+      <div className="bg-[#ffffff] rounded-xl p-6 border border-[#e5e7eb]">
         <h2 className="font-bold mb-4">Users by role</h2>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
           {Object.values(Role).map((role) => (
             <div
               key={role}
-              className="bg-[#0b1326] rounded-lg p-3 border border-[#171f33]/30"
+              className="bg-[#ffffff] rounded-lg p-3 border border-[#e5e7eb]"
             >
-              <div className="text-xs uppercase tracking-wider text-[#9da4c1]">
+              <div className="text-xs uppercase tracking-wider text-[#94a3b8]">
                 {role}
               </div>
               <div className="text-xl font-bold mt-1">
@@ -81,15 +81,15 @@ export default async function AdminLandingPage() {
         </div>
       </div>
 
-      <div className="bg-[#131b2e] rounded-xl p-6 border border-[#171f33]/50">
+      <div className="bg-[#ffffff] rounded-xl p-6 border border-[#e5e7eb]">
         <h2 className="font-bold mb-4">Rating requests</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
           {Object.values(RatingRequestStatus).map((s) => (
             <div
               key={s}
-              className="bg-[#0b1326] rounded-lg p-3 border border-[#171f33]/30"
+              className="bg-[#ffffff] rounded-lg p-3 border border-[#e5e7eb]"
             >
-              <div className="text-xs uppercase tracking-wider text-[#9da4c1]">
+              <div className="text-xs uppercase tracking-wider text-[#94a3b8]">
                 {s}
               </div>
               <div className="text-xl font-bold mt-1">
@@ -103,7 +103,7 @@ export default async function AdminLandingPage() {
       <div>
         <Link
           href="/admin/users"
-          className="inline-block px-4 py-2 rounded-lg bg-[#bbc3ff] text-[#0b1326] font-medium text-sm hover:bg-[#bbc3ff]/80"
+          className="inline-block px-4 py-2 rounded-lg bg-[#dc2626] text-[#ffffff] font-medium text-sm hover:bg-[#b91c1c]"
         >
           Manage users
         </Link>
@@ -114,8 +114,8 @@ export default async function AdminLandingPage() {
 
 function Stat({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="bg-[#131b2e] rounded-lg border border-[#171f33]/50 p-4">
-      <div className="text-xs uppercase tracking-wider text-[#9da4c1]">
+    <div className="bg-[#ffffff] rounded-lg border border-[#e5e7eb] p-4">
+      <div className="text-xs uppercase tracking-wider text-[#94a3b8]">
         {label}
       </div>
       <div className="text-2xl font-bold mt-1">{value}</div>

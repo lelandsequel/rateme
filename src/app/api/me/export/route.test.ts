@@ -198,16 +198,16 @@ describe("GET /api/me/export", () => {
     expect(body).toHaveProperty("membershipAsMember");
   });
 
-  it("redacts the rater identity in ratingsReceived (no name/email leak)", async () => {
+  it("includes rater name in ratingsReceived but never leaks email", async () => {
     const res = await callGet();
     const body = await res.json();
     expect(body.ratingsReceived).toHaveLength(1);
     const rated = body.ratingsReceived[0];
     expect(rated.rater).toBeDefined();
-    // Name + email MUST NOT leak.
-    expect(rated.rater.name).toBeUndefined();
+    // Name is now visible (per 2026-04-29 spec change). Email is still hidden.
+    expect(typeof rated.rater.name).toBe("string");
     expect(rated.rater.email).toBeUndefined();
-    // PublicRater shape: title + company + industry + state + userId.
+    // PublicRater shape: name + title + company + industry + state + userId.
     expect(rated.rater.title).toBe("VP Procurement");
     expect(rated.rater.company).toBe("BigCo");
     expect(rated.rater.industry.name).toBe("SaaS");

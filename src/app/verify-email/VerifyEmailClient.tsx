@@ -69,19 +69,19 @@ export function VerifyEmailClient({ token }: Props) {
 
   if (status.kind === "pending") {
     return (
-      <p className="text-sm text-[#c6c5d4]">Verifying your email…</p>
+      <p className="text-sm text-[#475569]">Verifying your email…</p>
     );
   }
 
   if (status.kind === "success") {
     return (
       <div className="space-y-4">
-        <div className="text-sm text-[#dae2fd] bg-[#001d92]/30 border border-[#001d92]/50 rounded-lg px-3 py-3">
+        <div className="text-sm text-[#0f172a] bg-[#fecaca] border border-[#fecaca] rounded-lg px-3 py-3">
           Email verified. You're all set.
         </div>
         <Link
           href="/login"
-          className="block text-center w-full bg-[#bbc3ff] text-[#0b1326] px-4 py-2.5 rounded-lg font-medium text-sm hover:bg-[#bbc3ff]/80 transition-colors"
+          className="block text-center w-full bg-[#dc2626] text-[#ffffff] px-4 py-2.5 rounded-lg font-medium text-sm hover:bg-[#b91c1c] transition-colors"
         >
           Sign in
         </Link>
@@ -91,12 +91,12 @@ export function VerifyEmailClient({ token }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="text-sm text-red-400 bg-[#93000a]/10 border border-[#93000a]/30 rounded-lg px-3 py-2">
+      <div className="text-sm text-[#dc2626] bg-[#fee2e2] border border-[#fecaca] rounded-lg px-3 py-2">
         {status.message}
       </div>
       <Link
         href="/login"
-        className="block text-center w-full bg-[#1c2238] text-[#dae2fd] px-4 py-2.5 rounded-lg font-medium text-sm hover:bg-[#222b48] transition-colors border border-[#2d3449]"
+        className="block text-center w-full bg-[#1c2238] text-[#0f172a] px-4 py-2.5 rounded-lg font-medium text-sm hover:bg-[#222b48] transition-colors border border-[#e5e7eb]"
       >
         Back to sign in
       </Link>

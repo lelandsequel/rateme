@@ -43,12 +43,12 @@ export const dynamic = "force-dynamic";
 const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 
 const STATUS_BADGE: Record<StatusTier, string> = {
-  Unverified: "bg-[#2d2d3a] text-[#9da4c1]",
-  Verified: "bg-[#2d3449] text-[#c6c5d4]",
-  Trusted: "bg-[#0f3a2a] text-[#7adfaf]",
-  Preferred: "bg-[#1d3a5e] text-[#7ab3f5]",
-  ELITE: "bg-[#3a2d1d] text-[#f5c97a]",
-  "ELITE+": "bg-[#3a1d1d] text-[#f5867a]",
+  Unverified: "bg-[#e2e8f0] text-[#475569]",
+  Verified: "bg-[#e2e8f0] text-[#334155]",
+  Trusted: "bg-[#e2e8f0] text-[#334155]",
+  Preferred: "bg-[#e2e8f0] text-[#334155]",
+  ELITE: "bg-[#e2e8f0] text-[#334155]",
+  "ELITE+": "bg-[#dc2626] text-white",
 };
 
 export default async function HomePage() {
@@ -101,22 +101,30 @@ async function RepHome({ userId }: { userId: string }) {
   return (
     <div className="space-y-8">
       <header>
-        <p className="text-xs uppercase tracking-wider text-[#9da4c1]">Your reputation</p>
+        <p className="text-xs uppercase tracking-wider text-[#94a3b8]">Your reputation</p>
         <h1 className="text-3xl font-bold mt-1">{me.name}</h1>
-        <p className="text-[#c6c5d4]">{me.repProfile.title} · {me.repProfile.company} · {me.repProfile.industry.name}</p>
+        <p className="text-[#475569]">{me.repProfile.title} · {me.repProfile.company} · {me.repProfile.industry.name}</p>
       </header>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Stat label="Status" value={<span className={`px-2 py-0.5 rounded ${STATUS_BADGE[agg.status]}`}>{agg.status}</span>} />
+        <Stat
+          label="Overall"
+          value={
+            <span>
+              <span className="text-[#fbbf24] mr-1">★</span>
+              {agg.overall ?? "—"}
+            </span>
+          }
+        />
+        <Stat label="Status" value={<span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[agg.status]}`}>{agg.status}</span>} />
         <Stat label="Ratings (year)" value={agg.ratingsThisYear} />
-        <Stat label="Overall score" value={agg.overall ?? "—"} />
         <Stat label="Take call again?" value={agg.takeCallAgainPct === null ? "—" : `${agg.takeCallAgainPct}%`} />
       </div>
 
       <RankingsBar userId={userId} role="REP" />
 
       {agg.averages && (
-        <div className="bg-[#131b2e] rounded-xl p-6 border border-[#171f33]/50">
+        <div className="bg-[#ffffff] rounded-xl p-6 border border-[#e5e7eb]">
           <h2 className="font-bold mb-4">Dimension averages</h2>
           <div className="space-y-2">
             <Bar label="Responsiveness" value={agg.averages.responsiveness} />
@@ -186,15 +194,15 @@ async function RaterHome({ userId }: { userId: string }) {
   return (
     <div className="space-y-8">
       <header>
-        <p className="text-xs uppercase tracking-wider text-[#9da4c1]">Welcome back</p>
+        <p className="text-xs uppercase tracking-wider text-[#94a3b8]">Welcome back</p>
         <h1 className="text-3xl font-bold mt-1">{me.name}</h1>
-        <p className="text-[#c6c5d4]">{me.raterProfile.title} · {me.raterProfile.company}</p>
+        <p className="text-[#475569]">{me.raterProfile.title} · {me.raterProfile.company}</p>
       </header>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Stat
           label="Status"
-          value={<span className={`px-2 py-0.5 rounded ${STATUS_BADGE[raterAgg.status]}`}>{raterAgg.status}</span>}
+          value={<span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[raterAgg.status]}`}>{raterAgg.status}</span>}
         />
         <Stat label="Active connections" value={acceptedCount} />
         <Stat label="Pending requests" value={pendingCount} />
@@ -285,9 +293,9 @@ async function SalesManagerHome({ userId }: { userId: string }) {
   return (
     <div className="space-y-8">
       <header>
-        <p className="text-xs uppercase tracking-wider text-[#9da4c1]">Your team</p>
+        <p className="text-xs uppercase tracking-wider text-[#94a3b8]">Your team</p>
         <h1 className="text-3xl font-bold mt-1">{me.name}</h1>
-        <p className="text-[#c6c5d4]">Sales Manager · {me.managerProfile.company}</p>
+        <p className="text-[#475569]">Sales Manager · {me.managerProfile.company}</p>
       </header>
 
       <ManagerStatsRow
@@ -299,7 +307,7 @@ async function SalesManagerHome({ userId }: { userId: string }) {
       <TrendChart series={stats.weekly} />
 
       {stats.dimensions && (
-        <div className="bg-[#131b2e] rounded-xl p-6 border border-[#171f33]/50">
+        <div className="bg-[#ffffff] rounded-xl p-6 border border-[#e5e7eb]">
           <h2 className="font-bold mb-4">Average score by question (last 30 days)</h2>
           <div className="space-y-2">
             <Bar label="Responsiveness" value={stats.dimensions.responsiveness} />
@@ -311,10 +319,10 @@ async function SalesManagerHome({ userId }: { userId: string }) {
         </div>
       )}
 
-      <div className="bg-[#131b2e] rounded-xl border border-[#171f33]/50 overflow-hidden">
+      <div className="bg-[#ffffff] rounded-xl border border-[#e5e7eb] overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-[#0b1326]">
-            <tr className="text-left text-xs uppercase tracking-wider text-[#9da4c1]">
+          <thead className="bg-[#f8fafc]">
+            <tr className="text-left text-xs uppercase tracking-wider text-[#94a3b8]">
               <th className="px-4 py-3">Rep</th>
               <th className="px-4 py-3">Industry</th>
               <th className="px-4 py-3">Status</th>
@@ -326,14 +334,14 @@ async function SalesManagerHome({ userId }: { userId: string }) {
           </thead>
           <tbody>
             {teamRows.map((r) => (
-              <tr key={r.id} className="border-t border-[#171f33]/50 hover:bg-[#0b1326]/40">
+              <tr key={r.id} className="border-t border-[#e5e7eb] hover:bg-[#f8fafc]">
                 <td className="px-4 py-3">
-                  <Link href={`/reps/${r.id}`} className="text-[#dae2fd] hover:text-[#bbc3ff]">
+                  <Link href={`/reps/${r.id}`} className="text-[#0f172a] hover:text-[#dc2626]">
                     {r.name}
                   </Link>
-                  <div className="text-xs text-[#9da4c1]">{r.title} · {r.company}</div>
+                  <div className="text-xs text-[#94a3b8]">{r.title} · {r.company}</div>
                 </td>
-                <td className="px-4 py-3 text-[#c6c5d4]">{r.industry}</td>
+                <td className="px-4 py-3 text-[#475569]">{r.industry}</td>
                 <td className="px-4 py-3">
                   <span className={`px-2 py-0.5 rounded text-xs ${STATUS_BADGE[r.agg.status]}`}>{r.agg.status}</span>
                 </td>
@@ -344,7 +352,7 @@ async function SalesManagerHome({ userId }: { userId: string }) {
               </tr>
             ))}
             {teamRows.length === 0 && (
-              <tr><td colSpan={7} className="px-4 py-6 text-center text-[#9da4c1]">No team members yet.</td></tr>
+              <tr><td colSpan={7} className="px-4 py-6 text-center text-[#94a3b8]">No team members yet.</td></tr>
             )}
           </tbody>
         </table>
@@ -386,12 +394,12 @@ async function RaterManagerHome({ userId }: { userId: string }) {
   return (
     <div className="space-y-8">
       <header>
-        <p className="text-xs uppercase tracking-wider text-[#9da4c1]">Your team</p>
+        <p className="text-xs uppercase tracking-wider text-[#94a3b8]">Your team</p>
         <h1 className="text-3xl font-bold mt-1">{me.name}</h1>
-        <p className="text-[#c6c5d4]">Rater Manager · {me.managerProfile.company}</p>
+        <p className="text-[#475569]">Rater Manager · {me.managerProfile.company}</p>
       </header>
 
-      <p className="text-[#c6c5d4]">{me.managedMemberships.length} managed raters.</p>
+      <p className="text-[#475569]">{me.managedMemberships.length} managed raters.</p>
 
       <ManagerStatsRow
         totalFeedback={stats.totalFeedback}
@@ -402,7 +410,7 @@ async function RaterManagerHome({ userId }: { userId: string }) {
       <TrendChart series={stats.weekly} />
 
       {stats.dimensions && (
-        <div className="bg-[#131b2e] rounded-xl p-6 border border-[#171f33]/50">
+        <div className="bg-[#ffffff] rounded-xl p-6 border border-[#e5e7eb]">
           <h2 className="font-bold mb-4">Average score by question (last 30 days)</h2>
           <div className="space-y-2">
             <Bar label="Responsiveness" value={stats.dimensions.responsiveness} />
@@ -527,32 +535,32 @@ function ManagerStatsRow({
     resolution.rate === null ? null : Math.round(resolution.rate * 100);
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div className="bg-[#131b2e] rounded-lg border border-[#171f33]/50 p-4">
-        <div className="text-xs uppercase tracking-wider text-[#9da4c1]">Feedback this month</div>
+      <div className="bg-[#ffffff] rounded-lg border border-[#e5e7eb] p-4">
+        <div className="text-xs uppercase tracking-wider text-[#94a3b8]">Feedback this month</div>
         <div className="flex items-baseline gap-2 mt-1">
           <div className="text-2xl font-bold">{totalFeedback.thisMonth}</div>
           <DeltaPill delta={totalFeedback.deltaPct} />
         </div>
-        <div className="text-xs text-[#9da4c1] mt-1">vs {totalFeedback.lastMonth} last month</div>
+        <div className="text-xs text-[#94a3b8] mt-1">vs {totalFeedback.lastMonth} last month</div>
       </div>
-      <div className="bg-[#131b2e] rounded-lg border border-[#171f33]/50 p-4">
-        <div className="text-xs uppercase tracking-wider text-[#9da4c1]">Avg score this month</div>
+      <div className="bg-[#ffffff] rounded-lg border border-[#e5e7eb] p-4">
+        <div className="text-xs uppercase tracking-wider text-[#94a3b8]">Avg score this month</div>
         <div className="flex items-baseline gap-2 mt-1">
           <div className="text-2xl font-bold">
             {avgScore.thisMonth === 0 ? "—" : avgScore.thisMonth.toFixed(1)}
           </div>
           <DeltaPill delta={avgScore.deltaPct} />
         </div>
-        <div className="text-xs text-[#9da4c1] mt-1">
+        <div className="text-xs text-[#94a3b8] mt-1">
           vs {avgScore.lastMonth === 0 ? "—" : avgScore.lastMonth.toFixed(1)} last month
         </div>
       </div>
-      <div className="bg-[#131b2e] rounded-lg border border-[#171f33]/50 p-4">
-        <div className="text-xs uppercase tracking-wider text-[#9da4c1]">Resolution rate</div>
+      <div className="bg-[#ffffff] rounded-lg border border-[#e5e7eb] p-4">
+        <div className="text-xs uppercase tracking-wider text-[#94a3b8]">Resolution rate</div>
         <div className="text-2xl font-bold mt-1">
           {pctResolved === null ? "—" : `${pctResolved}%`}
         </div>
-        <div className="text-xs text-[#9da4c1] mt-1">
+        <div className="text-xs text-[#94a3b8] mt-1">
           {resolution.resolvedPairs}/{resolution.atRiskPairs} at-risk pairs recovered
         </div>
       </div>
@@ -561,13 +569,13 @@ function ManagerStatsRow({
 }
 
 function DeltaPill({ delta }: { delta: number | null }) {
-  if (delta === null) return <span className="text-xs text-[#9da4c1]">—</span>;
+  if (delta === null) return <span className="text-xs text-[#94a3b8]">—</span>;
   const cls =
     delta > 0
-      ? "bg-[#0f3a2a] text-[#7adfaf]"
+      ? "bg-[#dcfce7] text-[#166534]"
       : delta < 0
-      ? "bg-[#3a1d1d] text-[#f5867a]"
-      : "bg-[#3a2d1d] text-[#f5c97a]";
+      ? "bg-[#fee2e2] text-[#991b1b]"
+      : "bg-[#fef3c7] text-[#92400e]";
   const sign = delta > 0 ? "+" : "";
   return (
     <span className={`text-xs px-2 py-0.5 rounded ${cls}`}>
@@ -607,7 +615,7 @@ function TrendChart({ series }: { series: WeeklyTrendBucket[] }) {
   const hasAny = points.some((p) => p !== null);
 
   return (
-    <div className="bg-[#131b2e] rounded-xl p-6 border border-[#171f33]/50">
+    <div className="bg-[#ffffff] rounded-xl p-6 border border-[#e5e7eb]">
       <h2 className="font-bold mb-4">Rating trend (last 12 weeks)</h2>
       {hasAny ? (
         <svg
@@ -623,7 +631,7 @@ function TrendChart({ series }: { series: WeeklyTrendBucket[] }) {
             <polyline
               key={i}
               fill="none"
-              stroke="#bbc3ff"
+              stroke="#dc2626"
               strokeWidth={1}
               vectorEffect="non-scaling-stroke"
               points={seg.map((p) => `${p.x},${p.y}`).join(" ")}
@@ -631,12 +639,12 @@ function TrendChart({ series }: { series: WeeklyTrendBucket[] }) {
           ))}
           {points.map((p, i) =>
             p === null ? null : (
-              <circle key={i} cx={p.x} cy={p.y} r={1.2} fill="#bbc3ff" />
+              <circle key={i} cx={p.x} cy={p.y} r={1.2} fill="#dc2626" />
             ),
           )}
         </svg>
       ) : (
-        <p className="text-sm text-[#9da4c1]">No feedback in the last 12 weeks.</p>
+        <p className="text-sm text-[#94a3b8]">No feedback in the last 12 weeks.</p>
       )}
     </div>
   );
@@ -645,18 +653,18 @@ function TrendChart({ series }: { series: WeeklyTrendBucket[] }) {
 function RecentFeedbackList({ rows, kind }: { rows: RecentRow[]; kind: "rep" | "rater" }) {
   if (rows.length === 0) {
     return (
-      <div className="bg-[#131b2e] rounded-xl p-6 border border-[#171f33]/50">
+      <div className="bg-[#ffffff] rounded-xl p-6 border border-[#e5e7eb]">
         <h2 className="font-bold mb-2">Recent feedback</h2>
-        <p className="text-sm text-[#9da4c1]">No ratings yet.</p>
+        <p className="text-sm text-[#94a3b8]">No ratings yet.</p>
       </div>
     );
   }
   return (
-    <div className="bg-[#131b2e] rounded-xl border border-[#171f33]/50 overflow-hidden">
+    <div className="bg-[#ffffff] rounded-xl border border-[#e5e7eb] overflow-hidden">
       <h2 className="font-bold px-6 pt-6 pb-2">Recent feedback</h2>
       <table className="w-full text-sm">
-        <thead className="bg-[#0b1326]">
-          <tr className="text-left text-xs uppercase tracking-wider text-[#9da4c1]">
+        <thead className="bg-[#ffffff]">
+          <tr className="text-left text-xs uppercase tracking-wider text-[#94a3b8]">
             <th className="px-4 py-3">{kind === "rep" ? "Rep" : "Rated"}</th>
             <th className="px-4 py-3">Rater</th>
             <th className="px-4 py-3 text-center">R</th>
@@ -669,16 +677,16 @@ function RecentFeedbackList({ rows, kind }: { rows: RecentRow[]; kind: "rep" | "
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={r.id} className="border-t border-[#171f33]/50">
+            <tr key={r.id} className="border-t border-[#e5e7eb]">
               <td className="px-4 py-3">
-                <Link href={`/reps/${r.rep.id}`} className="text-[#dae2fd] hover:text-[#bbc3ff]">
+                <Link href={`/reps/${r.rep.id}`} className="text-[#0f172a] hover:text-[#dc2626]">
                   {r.rep.name}
                 </Link>
                 {(r.rep.title || r.rep.company) && (
-                  <div className="text-xs text-[#9da4c1]">{r.rep.title}{r.rep.title && r.rep.company ? " · " : ""}{r.rep.company}</div>
+                  <div className="text-xs text-[#94a3b8]">{r.rep.title}{r.rep.title && r.rep.company ? " · " : ""}{r.rep.company}</div>
                 )}
               </td>
-              <td className="px-4 py-3 text-[#c6c5d4]">
+              <td className="px-4 py-3 text-[#475569]">
                 {r.rater ? `${r.rater.title} @ ${r.rater.company}` : "—"}
               </td>
               <td className="px-4 py-3 text-center">{r.responsiveness}</td>
@@ -688,7 +696,7 @@ function RecentFeedbackList({ rows, kind }: { rows: RecentRow[]; kind: "rep" | "
               <td className="px-4 py-3 text-center">{r.trustIntegrity}</td>
               <td className="px-4 py-3 text-center">
                 {r.takeCallAgain ? (
-                  <span className="text-[#7adfaf]">Yes</span>
+                  <span className="text-[#16a34a]">Yes</span>
                 ) : (
                   <span className="text-[#f5867a]">No</span>
                 )}
@@ -705,15 +713,15 @@ function AdminHome() {
   return (
     <div className="space-y-4">
       <h1 className="text-3xl font-bold">Admin</h1>
-      <p className="text-[#c6c5d4]">Admin views coming soon.</p>
+      <p className="text-[#475569]">Admin views coming soon.</p>
     </div>
   );
 }
 
 function Stat({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="bg-[#131b2e] rounded-lg border border-[#171f33]/50 p-4">
-      <div className="text-xs uppercase tracking-wider text-[#9da4c1]">{label}</div>
+    <div className="bg-[#ffffff] rounded-lg border border-[#e5e7eb] p-4">
+      <div className="text-xs uppercase tracking-wider text-[#94a3b8]">{label}</div>
       <div className="text-2xl font-bold mt-1">{value}</div>
     </div>
   );
@@ -733,21 +741,21 @@ function TimingCard({
   const bLabel =
     kind === "rep" ? "Avg time to receive a rating" : "Avg time to fulfill rating asks";
   return (
-    <div className="bg-[#131b2e] rounded-xl p-6 border border-[#171f33]/50">
+    <div className="bg-[#ffffff] rounded-xl p-6 border border-[#e5e7eb]">
       <h2 className="font-bold mb-4">Response timing</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <div className="text-xs uppercase tracking-wider text-[#9da4c1]">{aLabel}</div>
+          <div className="text-xs uppercase tracking-wider text-[#94a3b8]">{aLabel}</div>
           <div className="text-2xl font-bold mt-1">{a}</div>
-          <div className="text-xs text-[#9da4c1] mt-1">
+          <div className="text-xs text-[#94a3b8] mt-1">
             {timing.countConnectionResponses} sample
             {timing.countConnectionResponses === 1 ? "" : "s"}
           </div>
         </div>
         <div>
-          <div className="text-xs uppercase tracking-wider text-[#9da4c1]">{bLabel}</div>
+          <div className="text-xs uppercase tracking-wider text-[#94a3b8]">{bLabel}</div>
           <div className="text-2xl font-bold mt-1">{b}</div>
-          <div className="text-xs text-[#9da4c1] mt-1">
+          <div className="text-xs text-[#94a3b8] mt-1">
             {timing.countRatingFulfillments} sample
             {timing.countRatingFulfillments === 1 ? "" : "s"}
           </div>
@@ -766,9 +774,9 @@ const DIM_PRETTY: Record<string, string> = {
 };
 
 const SEVERITY_BADGE: Record<string, string> = {
-  low: "bg-[#3a1d1d] text-[#f5867a]",
-  medium: "bg-[#3a2d1d] text-[#f5c97a]",
-  high: "bg-[#1d3a5e] text-[#7ab3f5]",
+  low: "bg-[#fee2e2] text-[#991b1b]",
+  medium: "bg-[#fef3c7] text-[#92400e]",
+  high: "bg-[#e0f2fe] text-[#075985]",
 };
 
 function TrainingSuggestions({
@@ -778,13 +786,13 @@ function TrainingSuggestions({
 }) {
   if (recs.length === 0) return null;
   return (
-    <div className="bg-[#131b2e] rounded-xl p-6 border border-[#171f33]/50">
+    <div className="bg-[#ffffff] rounded-xl p-6 border border-[#e5e7eb]">
       <h2 className="font-bold mb-4">Training suggestions</h2>
       <div className="space-y-4">
         {recs.map((rec) => (
           <div
             key={rec.dimension}
-            className="rounded-lg border border-[#171f33]/50 bg-[#0b1326] p-4"
+            className="rounded-lg border border-[#e5e7eb] bg-[#ffffff] p-4"
           >
             <div className="flex items-center justify-between mb-2">
               <div className="font-medium">{DIM_PRETTY[rec.dimension] ?? rec.dimension}</div>
@@ -794,7 +802,7 @@ function TrainingSuggestions({
                 {rec.severity} · {rec.averageScore.toFixed(1)}
               </span>
             </div>
-            <p className="text-sm text-[#c6c5d4]">{rec.suggestion}</p>
+            <p className="text-sm text-[#475569]">{rec.suggestion}</p>
             {rec.resources.length > 0 && (
               <ul className="mt-2 list-disc list-inside text-sm">
                 {rec.resources.map((res) => (
@@ -803,7 +811,7 @@ function TrainingSuggestions({
                       href={res.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[#bbc3ff] hover:underline"
+                      className="text-[#dc2626] hover:underline"
                     >
                       {res.title}
                     </a>
@@ -823,17 +831,17 @@ function Bar({ label, value }: { label: string; value: number }) {
   return (
     <div>
       <div className="flex items-center justify-between text-sm mb-1">
-        <span className="text-[#c6c5d4]">{label}</span>
-        <span className="text-[#dae2fd] font-medium">{value.toFixed(1)}</span>
+        <span className="text-[#475569]">{label}</span>
+        <span className="text-[#0f172a] font-medium">{value.toFixed(1)}</span>
       </div>
-      <div className="h-2 rounded-full bg-[#0b1326] overflow-hidden">
-        <div className="h-full bg-[#bbc3ff]" style={{ width: `${pct}%` }} />
+      <div className="h-2 rounded-full bg-[#f1f5f9] overflow-hidden">
+        <div className="h-full bg-[#dc2626]" style={{ width: `${pct}%` }} />
       </div>
     </div>
   );
 }
 
 const btnPrimary =
-  "inline-flex items-center px-4 py-2 rounded-lg bg-[#bbc3ff] text-[#0b1326] font-medium text-sm hover:bg-[#bbc3ff]/80";
+  "inline-flex items-center px-4 py-2 rounded-lg bg-[#dc2626] text-[#ffffff] font-medium text-sm hover:bg-[#b91c1c]";
 const btnSecondary =
-  "inline-flex items-center px-4 py-2 rounded-lg bg-[#131b2e] text-[#dae2fd] border border-[#2d3449] font-medium text-sm hover:bg-[#2d3449]/40";
+  "inline-flex items-center px-4 py-2 rounded-lg bg-white text-[#0f172a] border border-[#e5e7eb] font-medium text-sm hover:bg-[#f8fafc]";

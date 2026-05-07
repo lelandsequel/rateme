@@ -16,12 +16,12 @@ import { publicRater } from "@/lib/redact";
 export const dynamic = "force-dynamic";
 
 const STATUS_BADGE: Record<StatusTier, string> = {
-  Unverified: "bg-[#2d2d3a] text-[#9da4c1]",
-  Verified: "bg-[#2d3449] text-[#c6c5d4]",
-  Trusted: "bg-[#0f3a2a] text-[#7adfaf]",
-  Preferred: "bg-[#1d3a5e] text-[#7ab3f5]",
-  ELITE: "bg-[#3a2d1d] text-[#f5c97a]",
-  "ELITE+": "bg-[#3a1d1d] text-[#f5867a]",
+  Unverified: "bg-[#e2e8f0] text-[#475569]",
+  Verified: "bg-[#e2e8f0] text-[#334155]",
+  Trusted: "bg-[#e2e8f0] text-[#334155]",
+  Preferred: "bg-[#e2e8f0] text-[#334155]",
+  ELITE: "bg-[#e2e8f0] text-[#334155]",
+  "ELITE+": "bg-[#dc2626] text-white",
 };
 
 export default async function PublicRepProfilePage({
@@ -57,12 +57,12 @@ export default async function PublicRepProfilePage({
     return (
       <main className="mx-auto max-w-2xl px-6 py-24">
         <h1 className="text-2xl font-bold">Rep not found</h1>
-        <p className="mt-4 text-[#9da4c1]">
+        <p className="mt-4 text-[#94a3b8]">
           This profile does not exist or is not public.
         </p>
         <Link
           href="/login"
-          className="mt-6 inline-block underline text-[#bbc3ff]"
+          className="mt-6 inline-block underline text-[#dc2626]"
         >
           Sign in to RateMyRep
         </Link>
@@ -90,18 +90,18 @@ export default async function PublicRepProfilePage({
   const callbackUrl = `/reps/${rep.id}`;
 
   return (
-    <main className="min-h-screen bg-[#0b1326] text-[#dae2fd]">
+    <main className="min-h-screen bg-[#ffffff] text-[#0f172a]">
       <div className="mx-auto max-w-3xl px-6 py-12 space-y-8">
         <div className="flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-md bg-[#001d92] flex items-center justify-center">
-              <span className="text-[#bbc3ff] text-sm font-bold">R</span>
+            <div className="w-8 h-8 rounded-md bg-[#dc2626] flex items-center justify-center">
+              <span className="text-white text-sm font-bold">R</span>
             </div>
             <span className="font-bold tracking-tight">RateMyRep</span>
           </Link>
           <Link
             href={`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`}
-            className="text-sm text-[#bbc3ff] underline hover:text-[#dae2fd]"
+            className="text-sm text-[#dc2626] underline hover:text-[#0f172a]"
           >
             Sign in to connect
           </Link>
@@ -109,26 +109,34 @@ export default async function PublicRepProfilePage({
 
         <header className="flex items-start justify-between">
           <div>
-            <p className="text-xs uppercase tracking-wider text-[#9da4c1]">
+            <p className="text-xs uppercase tracking-wider text-[#94a3b8]">
               Public rep profile
             </p>
             <h1 className="text-3xl font-bold mt-1">{rep.name}</h1>
-            <p className="text-[#c6c5d4]">
+            <p className="text-[#475569]">
               {rep.repProfile.title} · {rep.repProfile.company} ·{" "}
               {rep.repProfile.industry.name}
             </p>
-            <p className="text-xs text-[#9da4c1] mt-1">
+            <p className="text-xs text-[#94a3b8] mt-1">
               {rep.repProfile.metroArea ?? rep.state}
             </p>
           </div>
-          <span className={`px-3 py-1 rounded ${STATUS_BADGE[agg.status]}`}>
+          <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_BADGE[agg.status]}`}>
             {agg.status}
           </span>
         </header>
 
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <Stat
+            label="Overall"
+            value={
+              <span>
+                <span className="text-[#fbbf24] mr-1">★</span>
+                {agg.overall ?? "—"}
+              </span>
+            }
+          />
           <Stat label="Total ratings" value={agg.ratingCount} />
-          <Stat label="Overall" value={agg.overall ?? "—"} />
           <Stat
             label="Take call again?"
             value={
@@ -138,7 +146,7 @@ export default async function PublicRepProfilePage({
         </div>
 
         {agg.averages && (
-          <div className="bg-[#131b2e] rounded-xl p-6 border border-[#171f33]/50">
+          <div className="bg-[#ffffff] rounded-xl p-6 border border-[#e5e7eb]">
             <h2 className="font-bold mb-4">Dimensions</h2>
             <div className="space-y-2">
               <Bar label="Responsiveness" value={agg.averages.responsiveness} />
@@ -159,7 +167,7 @@ export default async function PublicRepProfilePage({
         <div>
           <h2 className="font-bold mb-3">Recent ratings</h2>
           {rep.ratingsReceived.length === 0 ? (
-            <p className="text-[#9da4c1]">No ratings yet.</p>
+            <p className="text-[#94a3b8]">No ratings yet.</p>
           ) : (
             <ul className="space-y-2">
               {rep.ratingsReceived.map((r) => {
@@ -172,39 +180,59 @@ export default async function PublicRepProfilePage({
                       industry: r.rater.raterProfile.industry,
                     })
                   : null;
+                const overall =
+                  (r.responsiveness +
+                    r.productKnowledge +
+                    r.followThrough +
+                    r.listeningNeedsFit +
+                    r.trustIntegrity) /
+                  5;
                 return (
                   <li
                     key={r.id}
-                    className="bg-[#131b2e] rounded-lg border border-[#171f33]/50 p-4 flex items-start justify-between"
+                    className="bg-white rounded-lg border border-[#e5e7eb] p-4"
                   >
-                    <div>
-                      <div className="text-sm text-[#dae2fd]">
-                        {pr?.title ?? "?"} · {pr?.company ?? "?"}
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <div className="text-sm text-[#0f172a] font-medium">
+                          {pr?.name ?? "Anonymous"}
+                          <span className="text-[#94a3b8] font-normal">
+                            {" — "}
+                            {pr?.title ?? "?"} · {pr?.company ?? "?"}
+                          </span>
+                        </div>
+                        <div className="text-xs text-[#94a3b8] mt-1">
+                          {new Date(r.createdAt).toLocaleDateString()} ·{" "}
+                          {pr?.industry.name ?? "?"}
+                        </div>
                       </div>
-                      <div className="text-xs text-[#9da4c1] mt-1">
-                        {new Date(r.createdAt).toLocaleDateString()} ·{" "}
-                        {pr?.industry.name ?? "?"}
+                      <div className="flex items-center gap-3 text-xs whitespace-nowrap">
+                        <span className="text-sm font-semibold text-[#0f172a]">
+                          <span className="text-[#fbbf24] mr-0.5">★</span>
+                          {overall.toFixed(1)}
+                        </span>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                            r.takeCallAgain
+                              ? "bg-[#dcfce7] text-[#166534]"
+                              : "bg-[#fee2e2] text-[#991b1b]"
+                          }`}
+                        >
+                          {r.takeCallAgain ? "would take call" : "would not"}
+                        </span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 text-xs">
+                    {r.comment && (
+                      <p className="text-sm text-[#475569] mt-2 italic">
+                        “{r.comment}”
+                      </p>
+                    )}
+                    <div className="flex items-center gap-3 text-[11px] text-[#94a3b8] mt-2">
                       <span title="Responsiveness">R {r.responsiveness}</span>
-                      <span title="Product knowledge">
-                        PK {r.productKnowledge}
-                      </span>
+                      <span title="Product knowledge">PK {r.productKnowledge}</span>
                       <span title="Follow-through">FT {r.followThrough}</span>
-                      <span title="Listening / needs">
-                        LN {r.listeningNeedsFit}
-                      </span>
+                      <span title="Listening / needs">LN {r.listeningNeedsFit}</span>
                       <span title="Trust / integrity">TR {r.trustIntegrity}</span>
-                      <span
-                        className={`px-2 py-0.5 rounded text-[10px] ${
-                          r.takeCallAgain
-                            ? "bg-[#0f3a2a] text-[#7adfaf]"
-                            : "bg-[#3a1d1d] text-[#f5867a]"
-                        }`}
-                      >
-                        {r.takeCallAgain ? "✓ would take call" : "✗ would not"}
-                      </span>
                     </div>
                   </li>
                 );
@@ -213,10 +241,10 @@ export default async function PublicRepProfilePage({
           )}
         </div>
 
-        <div className="border-t border-[#171f33]/50 pt-6">
+        <div className="border-t border-[#e5e7eb] pt-6">
           <Link
             href={`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`}
-            className="inline-block px-4 py-2 rounded-lg bg-[#bbc3ff] text-[#0b1326] font-medium text-sm hover:bg-[#bbc3ff]/80"
+            className="inline-block px-4 py-2 rounded-lg bg-[#dc2626] text-[#ffffff] font-medium text-sm hover:bg-[#b91c1c]"
           >
             Sign in to connect
           </Link>
@@ -228,8 +256,8 @@ export default async function PublicRepProfilePage({
 
 function Stat({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="bg-[#131b2e] rounded-lg border border-[#171f33]/50 p-4">
-      <div className="text-xs uppercase tracking-wider text-[#9da4c1]">
+    <div className="bg-[#ffffff] rounded-lg border border-[#e5e7eb] p-4">
+      <div className="text-xs uppercase tracking-wider text-[#94a3b8]">
         {label}
       </div>
       <div className="text-2xl font-bold mt-1">{value}</div>
@@ -242,12 +270,12 @@ function Bar({ label, value }: { label: string; value: number }) {
   return (
     <div>
       <div className="flex items-center justify-between text-sm mb-1">
-        <span className="text-[#c6c5d4]">{label}</span>
-        <span className="text-[#dae2fd] font-medium">{value.toFixed(1)}</span>
+        <span className="text-[#475569]">{label}</span>
+        <span className="text-[#0f172a] font-medium">{value.toFixed(1)}</span>
       </div>
-      <div className="h-2 rounded-full bg-[#0b1326] overflow-hidden">
+      <div className="h-2 rounded-full bg-[#f1f5f9] overflow-hidden">
         <div
-          className="h-full bg-[#bbc3ff]"
+          className="h-full bg-[#dc2626]"
           style={{ width: `${pct}%` }}
         />
       </div>

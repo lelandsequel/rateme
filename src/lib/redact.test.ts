@@ -5,7 +5,7 @@ const FAKE_RATER = {
   userId: "u1",
   user: {
     id: "u1",
-    name: "Real Name Should Not Leak",
+    name: "Real Reviewer Name",
     email: "secret@example.com",
     state: "TX",
     createdAt: new Date("2026-01-01T00:00:00Z"),
@@ -16,11 +16,14 @@ const FAKE_RATER = {
 };
 
 describe("publicRater", () => {
-  it("strips name and email", () => {
+  it("includes name (visibility flipped 2026-04-29)", () => {
     const r = publicRater(FAKE_RATER);
-    expect(r).not.toHaveProperty("name");
-    expect(r).not.toHaveProperty("email");
-    expect(JSON.stringify(r)).not.toContain("Real Name");
+    expect(r.name).toBe("Real Reviewer Name");
+  });
+  it("still hides email", () => {
+    const r = publicRater(FAKE_RATER);
+    // @ts-expect-error — email is not on PublicRater
+    expect(r.email).toBeUndefined();
     expect(JSON.stringify(r)).not.toContain("secret@example.com");
   });
   it("keeps title, company, industry, state, userId", () => {
@@ -36,7 +39,7 @@ describe("publicRater", () => {
 describe("fullRater", () => {
   it("includes name and email (for self / admin / managing-manager only)", () => {
     const r = fullRater(FAKE_RATER);
-    expect(r.name).toBe("Real Name Should Not Leak");
+    expect(r.name).toBe("Real Reviewer Name");
     expect(r.email).toBe("secret@example.com");
   });
 });

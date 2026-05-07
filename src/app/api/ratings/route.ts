@@ -35,12 +35,33 @@ interface SubmitBody {
   trustIntegrity?: unknown;
   takeCallAgain?: unknown;
   ratingRequestId?: unknown;
+  comment?: unknown;
 }
+
+const COMMENT_MAX = 500;
 
 function asDim(v: unknown): number | null {
   if (typeof v !== "number" || !Number.isInteger(v)) return null;
   if (v < 1 || v > 5) return null;
   return v;
+}
+
+/**
+ * Validate the optional comment field.
+ * Returns { ok: true, value } where value is the trimmed string or null,
+ * or { ok: false, error } describing why the input was rejected.
+ */
+function asComment(
+  v: unknown,
+): { ok: true; value: string | null } | { ok: false; error: string } {
+  if (v === undefined || v === null) return { ok: true, value: null };
+  if (typeof v !== "string") return { ok: false, error: "comment must be a string" };
+  const trimmed = v.trim();
+  if (trimmed.length === 0) return { ok: true, value: null };
+  if (trimmed.length > COMMENT_MAX) {
+    return { ok: false, error: `comment must be ≤${COMMENT_MAX} characters` };
+  }
+  return { ok: true, value: trimmed };
 }
 
 export async function POST(req: Request) {
@@ -65,6 +86,10 @@ export async function POST(req: Request) {
     const trustIntegrity    = asDim(body.trustIntegrity);
     const takeCallAgain     = typeof body.takeCallAgain === "boolean" ? body.takeCallAgain : null;
     const ratingRequestId   = typeof body.ratingRequestId === "string" ? body.ratingRequestId : null;
+
+    const commentRes = asComment(body.comment);
+    if (!commentRes.ok) return badReq(commentRes.error);
+    const comment = commentRes.value;
 
     if (!repUserId) return badReq("repUserId required");
     if (responsiveness === null) return badReq("responsiveness must be an integer 1-5");
@@ -145,6 +170,7 @@ export async function POST(req: Request) {
         trustIntegrity,
         takeCallAgain,
         ratingRequestId: validatedRequestId,
+        comment,
       },
     });
 

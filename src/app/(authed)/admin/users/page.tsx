@@ -77,7 +77,7 @@ export default async function AdminUsersPage({
   return (
     <div className="space-y-6">
       <header>
-        <p className="text-xs uppercase tracking-wider text-[#9da4c1]">
+        <p className="text-xs uppercase tracking-wider text-[#94a3b8]">
           Admin
         </p>
         <h1 className="text-3xl font-bold mt-1">Users</h1>
@@ -89,14 +89,14 @@ export default async function AdminUsersPage({
           name="q"
           defaultValue={q}
           placeholder="Search name or email"
-          className="bg-[#131b2e] border border-[#2d3449] rounded-lg px-3 py-2 text-sm text-[#dae2fd] w-72"
+          className="bg-[#ffffff] border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm text-[#0f172a] w-72"
         />
         {roleFilter && (
           <input type="hidden" name="role" value={roleFilter} />
         )}
         <button
           type="submit"
-          className="px-3 py-2 rounded-lg bg-[#bbc3ff] text-[#0b1326] font-medium text-sm hover:bg-[#bbc3ff]/80"
+          className="px-3 py-2 rounded-lg bg-[#dc2626] text-[#ffffff] font-medium text-sm hover:bg-[#b91c1c]"
         >
           Search
         </button>
@@ -107,8 +107,8 @@ export default async function AdminUsersPage({
           href={pillHref(null)}
           className={`px-3 py-1 rounded-full border ${
             roleFilter === null
-              ? "bg-[#bbc3ff] text-[#0b1326] border-[#bbc3ff]"
-              : "bg-[#131b2e] border-[#2d3449] text-[#c6c5d4] hover:text-[#dae2fd]"
+              ? "bg-[#dc2626] text-[#ffffff] border-[#dc2626]"
+              : "bg-[#ffffff] border-[#e5e7eb] text-[#475569] hover:text-[#0f172a]"
           }`}
         >
           All
@@ -119,8 +119,8 @@ export default async function AdminUsersPage({
             href={pillHref(role)}
             className={`px-3 py-1 rounded-full border ${
               roleFilter === role
-                ? "bg-[#bbc3ff] text-[#0b1326] border-[#bbc3ff]"
-                : "bg-[#131b2e] border-[#2d3449] text-[#c6c5d4] hover:text-[#dae2fd]"
+                ? "bg-[#dc2626] text-[#ffffff] border-[#dc2626]"
+                : "bg-[#ffffff] border-[#e5e7eb] text-[#475569] hover:text-[#0f172a]"
             }`}
           >
             {role}
@@ -128,14 +128,14 @@ export default async function AdminUsersPage({
         ))}
       </div>
 
-      <p className="text-xs text-[#9da4c1]">
+      <p className="text-xs text-[#94a3b8]">
         {total} {total === 1 ? "user" : "users"}
         {q || roleFilter ? " matching filters" : ""}.
       </p>
 
-      <div className="bg-[#131b2e] rounded-xl border border-[#171f33]/50 overflow-x-auto">
+      <div className="bg-[#ffffff] rounded-xl border border-[#e5e7eb] overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-[#0b1326] text-[#9da4c1]">
+          <thead className="bg-[#ffffff] text-[#94a3b8]">
             <tr>
               <Th>Name</Th>
               <Th>Email</Th>
@@ -152,14 +152,14 @@ export default async function AdminUsersPage({
               <tr>
                 <td
                   colSpan={8}
-                  className="px-4 py-8 text-center text-[#9da4c1]"
+                  className="px-4 py-8 text-center text-[#94a3b8]"
                 >
                   No users match.
                 </td>
               </tr>
             ) : (
               users.map((u) => (
-                <tr key={u.id} className="border-t border-[#171f33]/40">
+                <tr key={u.id} className="border-t border-[#e5e7eb]">
                   <Td>{u.name}</Td>
                   <Td>{u.email}</Td>
                   <Td>{u.role}</Td>
@@ -190,7 +190,7 @@ export default async function AdminUsersPage({
                 ...(roleFilter ? { role: roleFilter } : {}),
                 offset: String(Math.max(0, offset - PAGE_SIZE)),
               }).toString()}`}
-              className="px-3 py-1.5 rounded-lg bg-[#131b2e] border border-[#2d3449] text-[#c6c5d4]"
+              className="px-3 py-1.5 rounded-lg bg-[#ffffff] border border-[#e5e7eb] text-[#475569]"
             >
               ← Previous
             </Link>
@@ -202,7 +202,7 @@ export default async function AdminUsersPage({
                 ...(roleFilter ? { role: roleFilter } : {}),
                 offset: String(offset + PAGE_SIZE),
               }).toString()}`}
-              className="px-3 py-1.5 rounded-lg bg-[#131b2e] border border-[#2d3449] text-[#c6c5d4]"
+              className="px-3 py-1.5 rounded-lg bg-[#ffffff] border border-[#e5e7eb] text-[#475569]"
             >
               Next →
             </Link>
@@ -222,5 +222,5 @@ function Th({ children }: { children: React.ReactNode }) {
 }
 
 function Td({ children }: { children: React.ReactNode }) {
-  return <td className="px-4 py-2 text-[#dae2fd]">{children}</td>;
+  return <td className="px-4 py-2 text-[#0f172a]">{children}</td>;
 }

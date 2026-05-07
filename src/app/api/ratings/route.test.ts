@@ -40,6 +40,7 @@ interface RatingRow {
   trustIntegrity: number;
   takeCallAgain: boolean;
   ratingRequestId: string | null;
+  comment: string | null;
   createdAt: Date;
 }
 
@@ -398,6 +399,50 @@ async function flushAsync(): Promise<void> {
     await new Promise((r) => setImmediate(r));
   }
 }
+
+describe("POST /api/ratings — optional comment", () => {
+  it("stores comment=null when omitted", async () => {
+    const res = await callRoute(validBody);
+    expect(res.status).toBe(200);
+    expect(state.ratings).toHaveLength(1);
+    expect(state.ratings[0].comment).toBeNull();
+  });
+
+  it("trims and stores a valid comment", async () => {
+    const res = await callRoute({ ...validBody, comment: "  great rep, super responsive  " });
+    expect(res.status).toBe(200);
+    expect(state.ratings).toHaveLength(1);
+    expect(state.ratings[0].comment).toBe("great rep, super responsive");
+  });
+
+  it("treats whitespace-only comment as null", async () => {
+    const res = await callRoute({ ...validBody, comment: "    \n   " });
+    expect(res.status).toBe(200);
+    expect(state.ratings).toHaveLength(1);
+    expect(state.ratings[0].comment).toBeNull();
+  });
+
+  it("400s when comment exceeds 500 chars", async () => {
+    const res = await callRoute({ ...validBody, comment: "x".repeat(501) });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/500/);
+    expect(state.ratings).toHaveLength(0);
+  });
+
+  it("accepts a comment of exactly 500 chars", async () => {
+    const res = await callRoute({ ...validBody, comment: "x".repeat(500) });
+    expect(res.status).toBe(200);
+    expect(state.ratings).toHaveLength(1);
+    expect(state.ratings[0].comment).toHaveLength(500);
+  });
+
+  it("400s when comment is not a string", async () => {
+    const res = await callRoute({ ...validBody, comment: 42 });
+    expect(res.status).toBe(400);
+    expect(state.ratings).toHaveLength(0);
+  });
+});
 
 describe("POST /api/ratings — favorite notification fan-out", () => {
   it("creates a NotificationLog row for each Rater favoriting this Rep", async () => {

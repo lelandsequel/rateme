@@ -1,7 +1,7 @@
 // GET /api/reps/:id/ratings — paginated list of ratings on a rep.
 //
-// Returns the rater's title + company + industry + state ONLY (no name,
-// no email) per the privacy spec. Order: most recent first.
+// Returns the rater's name + title + company + industry + state and the
+// optional comment. Email remains hidden. Order: most recent first.
 
 import { handle, parseIntParam } from "@/lib/api";
 import { requireSession } from "@/lib/auth";
@@ -48,8 +48,9 @@ export async function GET(
         listeningNeedsFit: r.listeningNeedsFit,
         trustIntegrity: r.trustIntegrity,
         takeCallAgain: r.takeCallAgain,
+        comment: r.comment,
         createdAt: r.createdAt,
-        // REDACTED — no name, no email.
+        // Name now visible; email still hidden.
         rater: r.rater.raterProfile
           ? publicRater({
               userId: r.rater.id,

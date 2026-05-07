@@ -146,7 +146,7 @@ export function ProfileEditForm({
       )}
 
       {error && (
-        <div className="text-sm text-red-400 bg-[#93000a]/10 border border-[#93000a]/30 rounded-lg px-3 py-2">
+        <div className="text-sm text-[#dc2626] bg-[#fee2e2] border border-[#fecaca] rounded-lg px-3 py-2">
           {error}
         </div>
       )}
@@ -154,7 +154,7 @@ export function ProfileEditForm({
       <button
         type="submit"
         disabled={submitting}
-        className="w-full bg-[#bbc3ff] text-[#0b1326] px-4 py-2.5 rounded-lg font-medium text-sm hover:bg-[#bbc3ff]/80 transition-colors disabled:opacity-50"
+        className="w-full bg-[#dc2626] text-[#ffffff] px-4 py-2.5 rounded-lg font-medium text-sm hover:bg-[#b91c1c] transition-colors disabled:opacity-50"
       >
         {submitting ? "Saving…" : "Save changes"}
       </button>
@@ -163,12 +163,12 @@ export function ProfileEditForm({
 }
 
 const inputClass =
-  "w-full bg-[#0b1326] text-[#dae2fd] px-3 py-2 rounded-lg border border-[#2d3449] focus:outline-none focus:ring-1 focus:ring-[#bbc3ff]/40";
+  "w-full bg-[#ffffff] text-[#0f172a] px-3 py-2 rounded-lg border border-[#e5e7eb] focus:outline-none focus:ring-1 focus:ring-[#dc2626]/40";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="block text-xs text-[#c6c5d4] mb-1">{label}</label>
+      <label className="block text-xs text-[#475569] mb-1">{label}</label>
       {children}
     </div>
   );

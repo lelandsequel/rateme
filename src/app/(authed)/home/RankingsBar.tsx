@@ -15,9 +15,9 @@ import {
 } from "@/lib/rankings";
 
 function toneForPercentile(percentile: number): string {
-  if (percentile >= 75) return "bg-[#0f3a2a] text-[#7adfaf]";
-  if (percentile <= 25) return "bg-[#3a2d1d] text-[#f5c97a]";
-  return "bg-[#2d3449] text-[#c6c5d4]";
+  if (percentile >= 75) return "bg-[#dcfce7] text-[#166534]";
+  if (percentile <= 25) return "bg-[#fef3c7] text-[#92400e]";
+  return "bg-[#e5e7eb] text-[#475569]";
 }
 
 function Pill({ tone, children }: { tone: string; children: React.ReactNode }) {
@@ -91,7 +91,7 @@ export async function RankingsBar({ userId, role }: { userId: string; role: stri
 }
 
 function toneForFulfillment(pct: number): string {
-  if (pct >= 75) return "bg-[#0f3a2a] text-[#7adfaf]";
-  if (pct <= 25) return "bg-[#3a2d1d] text-[#f5c97a]";
-  return "bg-[#2d3449] text-[#c6c5d4]";
+  if (pct >= 75) return "bg-[#dcfce7] text-[#166534]";
+  if (pct <= 25) return "bg-[#fef3c7] text-[#92400e]";
+  return "bg-[#e5e7eb] text-[#475569]";
 }

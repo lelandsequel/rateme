@@ -1,20 +1,21 @@
-// Rater redaction — privacy is a first-class concern.
+// Rater redaction.
 //
-// Spec: "Rater – Only title & Company should be visible – no contact information"
+// Updated spec (2026-04-29): the client wants reviewer names VISIBLE on
+// the public rater payload. Email and other contact info remain hidden
+// from REPs / unrelated viewers — only self / admin / managing-manager
+// see those.
 //
-// Reads: name, email, contact info on a Rater are hidden from EVERYONE
-// except (a) the rater themselves, (b) admins, and (c) the rater-manager
-// of that rater (if managed).
-//
-// We funnel every external rater payload through `publicRater()` so that
-// no route accidentally leaks a name. The shape is the only thing
-// callers should marshal to the wire.
+// `publicRater` now returns name + title + company + industry + state.
+// `fullRater` additionally returns email + createdAt for the privileged
+// view paths.
 
 import type { Role } from "@prisma/client";
 
 export interface PublicRater {
-  /** Stable id used as the relational key. NOT the rater's name. */
+  /** Stable id used as the relational key. */
   userId: string;
+  /** Reviewer display name — visible to all viewers. */
+  name: string;
   title: string;
   company: string;
   industry: { slug: string; name: string };
@@ -22,7 +23,6 @@ export interface PublicRater {
 }
 
 export interface FullRater extends PublicRater {
-  name: string;
   email: string;
   createdAt: Date;
 }
@@ -41,10 +41,15 @@ interface RaterSource {
   industry: { slug: string; name: string };
 }
 
-/** Strip a Rater payload to title + company + industry + state only. */
+/**
+ * Public rater payload — name + title + company + industry + state. Email
+ * is intentionally OMITTED for any viewer other than self/admin/manager
+ * (use fullRater for those).
+ */
 export function publicRater(src: RaterSource): PublicRater {
   return {
     userId: src.userId,
+    name: src.user.name,
     title: src.title,
     company: src.company,
     industry: { slug: src.industry.slug, name: src.industry.name },
@@ -52,19 +57,18 @@ export function publicRater(src: RaterSource): PublicRater {
   };
 }
 
-/** Self / admin / manager view — includes name + email. */
+/** Self / admin / manager view — adds email + createdAt. */
 export function fullRater(src: RaterSource): FullRater {
   return {
     ...publicRater(src),
-    name: src.user.name,
     email: src.user.email,
     createdAt: src.user.createdAt,
   };
 }
 
 /**
- * Decide whether the viewer is allowed to see the rater's full identity.
- * Used to choose between publicRater and fullRater.
+ * Decide whether the viewer is allowed to see the rater's contact info
+ * (i.e. email). Used to choose between publicRater and fullRater.
  */
 export function canSeeFullRater(opts: {
   viewerId: string;
