@@ -58,7 +58,6 @@ export async function GET() {
                   company: m.member.repProfile.company,
                   industry: m.member.repProfile.industry,
                   metroArea: m.member.repProfile.metroArea,
-                  bio: m.member.repProfile.bio,
                   recentRatingCount: m.member._count.ratingsReceived,
                 }
               : null,
