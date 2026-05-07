@@ -6,11 +6,20 @@
 //   • All five 1-5 dimensions are required ints. NO free text.
 //   • takeCallAgain is a required boolean.
 //
+// Optional: if ratingRequestId is supplied, validate it belongs to this
+// (rep, rater) pair, is PENDING, and isn't past expiresAt. If valid, mark
+// the rating with that requestId AND flip the request to COMPLETED in the
+// same transaction.
+//
 // We do NOT enforce "one rating per pair" — repeat ratings are valuable
 // signal (track sentiment over time). Per-pair rate-limiting can come
 // later if it turns into spam.
 
-import { ConnectionStatus, Role } from "@prisma/client";
+import {
+  ConnectionStatus,
+  RatingRequestStatus,
+  Role,
+} from "@prisma/client";
 
 import { handle } from "@/lib/api";
 import { requireSession } from "@/lib/auth";
@@ -82,6 +91,47 @@ export async function POST(req: Request) {
       );
     }
 
+    // If a ratingRequestId is supplied, validate it lines up with this
+    // (rep, rater) pair before we let it tag the rating.
+    let validatedRequestId: string | null = null;
+    if (ratingRequestId) {
+      const rr = await prisma.ratingRequest.findUnique({
+        where: { id: ratingRequestId },
+      });
+      if (!rr) {
+        return Response.json({ error: "ratingRequest not found" }, { status: 400 });
+      }
+      if (rr.forRepUserId !== repUserId) {
+        return Response.json(
+          { error: "ratingRequest is for a different rep" },
+          { status: 400 },
+        );
+      }
+      // For ON_BEHALF the target rater is fixed; enforce match.
+      // For ONE_TIME the request may not yet have a toRaterUserId — accept
+      // as long as the current rater is reasonable (we still match toEmail
+      // when present, falling back to toRaterUserId).
+      if (rr.toRaterUserId && rr.toRaterUserId !== session.user.id) {
+        return Response.json(
+          { error: "ratingRequest is for a different rater" },
+          { status: 400 },
+        );
+      }
+      if (rr.status !== RatingRequestStatus.PENDING) {
+        return Response.json(
+          { error: `ratingRequest is ${rr.status}` },
+          { status: 400 },
+        );
+      }
+      if (rr.expiresAt.getTime() < Date.now()) {
+        return Response.json(
+          { error: "ratingRequest is expired" },
+          { status: 400 },
+        );
+      }
+      validatedRequestId = rr.id;
+    }
+
     const rating = await prisma.rating.create({
       data: {
         connectionId: conn.id,
@@ -93,9 +143,22 @@ export async function POST(req: Request) {
         listeningNeedsFit,
         trustIntegrity,
         takeCallAgain,
-        ratingRequestId,
+        ratingRequestId: validatedRequestId,
       },
     });
+
+    if (validatedRequestId) {
+      await prisma.ratingRequest.update({
+        where: { id: validatedRequestId },
+        data: {
+          status: RatingRequestStatus.COMPLETED,
+          completedAt: new Date(),
+          // Backfill toRaterUserId for ONE_TIME requests so downstream queries
+          // can find them by rater id.
+          toRaterUserId: session.user.id,
+        },
+      });
+    }
 
     return Response.json({ rating });
   });

@@ -13,7 +13,15 @@ const DIMENSIONS = [
 
 type DimKey = (typeof DIMENSIONS)[number]["key"];
 
-export function RatingForm({ repUserId }: { repUserId: string }) {
+export function RatingForm({
+  repUserId,
+  ratingRequestId,
+  redirectAfter,
+}: {
+  repUserId: string;
+  ratingRequestId?: string;
+  redirectAfter?: string;
+}) {
   const router = useRouter();
   const [scores, setScores] = useState<Record<DimKey, number>>({
     responsiveness: 4,
@@ -32,10 +40,16 @@ export function RatingForm({ repUserId }: { repUserId: string }) {
     setErr(null);
     setSubmitting(true);
     try {
+      const payload: Record<string, unknown> = {
+        repUserId,
+        ...scores,
+        takeCallAgain,
+      };
+      if (ratingRequestId) payload.ratingRequestId = ratingRequestId;
       const res = await fetch("/api/ratings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ repUserId, ...scores, takeCallAgain }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -44,8 +58,9 @@ export function RatingForm({ repUserId }: { repUserId: string }) {
         return;
       }
       setDone(true);
+      const target = redirectAfter ?? `/reps/${repUserId}`;
       setTimeout(() => {
-        router.push(`/reps/${repUserId}`);
+        router.push(target);
         router.refresh();
       }, 800);
     } catch {

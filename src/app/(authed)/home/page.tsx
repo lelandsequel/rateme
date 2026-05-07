@@ -11,6 +11,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { aggregateRatings, type StatusTier } from "@/lib/aggregates";
 import { ConnectionStatus, Role } from "@prisma/client";
+import { InviteRater } from "./InviteRater";
 
 export const dynamic = "force-dynamic";
 
@@ -83,6 +84,8 @@ async function RepHome({ userId }: { userId: string }) {
           </div>
         </div>
       )}
+
+      <InviteRater />
 
       <div className="flex gap-3">
         <Link href="/connections" className={btnPrimary}>Manage connections</Link>

@@ -7,7 +7,12 @@
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { ConnectionStatus, ConnectionInitiator, Role } from "@prisma/client";
+import {
+  ConnectionStatus,
+  ConnectionInitiator,
+  RatingRequestStatus,
+  Role,
+} from "@prisma/client";
 import { ConnectionAction } from "./ConnectionAction";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +35,27 @@ export default async function ConnectionsPage() {
       rater: { include: { raterProfile: { include: { industry: { select: { name: true } } } } } },
     },
   });
+
+  // Pending rating requests where the current user is the target rater.
+  const pendingRatingRequests = viewerIsRater
+    ? await prisma.ratingRequest.findMany({
+        where: {
+          toRaterUserId: userId,
+          status: RatingRequestStatus.PENDING,
+          expiresAt: { gt: new Date() },
+        },
+        orderBy: { createdAt: "desc" },
+        include: {
+          forRep: {
+            include: {
+              repProfile: {
+                include: { industry: { select: { name: true } } },
+              },
+            },
+          },
+        },
+      })
+    : [];
 
   // Bucket: incoming-pending (need my action), outgoing-pending (waiting),
   // accepted, ended.
@@ -57,6 +83,46 @@ export default async function ConnectionsPage() {
         <p className="text-xs uppercase tracking-wider text-[#9da4c1]">Inbox</p>
         <h1 className="text-3xl font-bold mt-1">Connections</h1>
       </header>
+
+      {viewerIsRater && pendingRatingRequests.length > 0 && (
+        <Section
+          title={`Pending rating requests for you (${pendingRatingRequests.length})`}
+          accent="caution"
+        >
+          <ul className="space-y-2">
+            {pendingRatingRequests
+              .filter((rr) => rr.forRep.repProfile)
+              .map((rr) => (
+                <li
+                  key={rr.id}
+                  className="bg-[#131b2e] rounded-lg border border-[#171f33]/50 p-4 flex items-start justify-between"
+                >
+                  <div>
+                    <Link
+                      href={`/reps/${rr.forRep.id}`}
+                      className="font-bold text-[#dae2fd] hover:text-[#bbc3ff]"
+                    >
+                      {rr.forRep.name}
+                    </Link>
+                    <div className="text-sm text-[#c6c5d4]">
+                      {rr.forRep.repProfile?.title} ·{" "}
+                      {rr.forRep.repProfile?.company}
+                    </div>
+                    <div className="text-xs text-[#9da4c1] mt-1">
+                      {rr.type === "ON_BEHALF" ? "Manager-requested" : "Invitation"}
+                    </div>
+                  </div>
+                  <Link
+                    href={`/reps/${rr.forRep.id}/rate?ratingRequestId=${rr.id}`}
+                    className="text-xs px-3 py-1.5 rounded-lg bg-[#bbc3ff] text-[#0b1326] font-medium hover:bg-[#bbc3ff]/80"
+                  >
+                    Rate now
+                  </Link>
+                </li>
+              ))}
+          </ul>
+        </Section>
+      )}
 
       <Section title={`Awaiting your action (${incomingPending.length})`} accent="caution">
         {incomingPending.length === 0 ? (
