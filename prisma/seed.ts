@@ -64,6 +64,9 @@ async function main() {
       passwordHash,
       role: Role.SALES_MANAGER,
       state: USState.TX,
+      // Grandfather all seeded users so the email-verify gate (when
+      // REQUIRE_EMAIL_VERIFICATION=true) doesn't block existing demo logins.
+      emailVerifiedAt: new Date(),
       managerProfile: {
         create: {
           managesType: ManagerType.REP_MANAGER,
@@ -94,6 +97,7 @@ async function main() {
         passwordHash,
         role: Role.REP,
         state: USState.TX,
+        emailVerifiedAt: new Date(),
         repProfile: {
           create: {
             title: spec.title,
@@ -144,6 +148,7 @@ async function main() {
         passwordHash,
         role: Role.RATER,
         state: USState.TX,
+        emailVerifiedAt: new Date(),
         raterProfile: {
           create: {
             title: spec.title,

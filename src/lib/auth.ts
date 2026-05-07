@@ -79,6 +79,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const ok = await bcrypt.compare(password, user.passwordHash);
         if (!ok) return null;
 
+        // Optional email-verification gate. Off by default so existing demo
+        // accounts (and any stragglers without `emailVerifiedAt` set) keep
+        // working. Flip REQUIRE_EMAIL_VERIFICATION=true once the seeded
+        // cohorts are grandfathered in production.
+        if (
+          process.env.REQUIRE_EMAIL_VERIFICATION === "true" &&
+          user.emailVerifiedAt == null
+        ) {
+          return null;
+        }
+
         // Touch lastLoginAt — best-effort, swallow errors.
         try {
           await prisma.user.update({

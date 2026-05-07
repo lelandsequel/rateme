@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 
@@ -89,6 +90,12 @@ export function LoginForm({ callbackUrl = "/home", error }: Props) {
       >
         {submitting ? "Signing in…" : "Sign in"}
       </button>
+
+      <p className="text-xs text-[#c6c5d4]/70 text-center pt-2">
+        <Link href="/forgot-password" className="text-[#bbc3ff] hover:underline">
+          Forgot password?
+        </Link>
+      </p>
     </form>
   );
 }

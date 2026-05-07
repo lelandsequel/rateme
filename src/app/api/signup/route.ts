@@ -10,6 +10,7 @@ import bcrypt from "bcrypt";
 import { Role, USState, ManagerType } from "@prisma/client";
 
 import { handle } from "@/lib/api";
+import { issueAndSendVerify } from "@/lib/auth-emails";
 import { HAS_DB } from "@/lib/env";
 import { signMobileToken } from "@/lib/mobile-token";
 import { prisma } from "@/lib/prisma";
@@ -134,6 +135,17 @@ export async function POST(req: Request) {
             }
           : {}),
       },
+    });
+
+    // Fire-and-forget: kick off email verification. We deliberately don't
+    // block signup on Resend's response — a failed send is logged and the
+    // user can request a new link via /forgot-password (same machinery).
+    void issueAndSendVerify({
+      id: created.id,
+      name: created.name,
+      email: created.email,
+    }).catch((err) => {
+      console.warn("[signup] verify email failed:", err);
     });
 
     const token = await signMobileToken({

@@ -17,6 +17,20 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+/**
+ * Pages that must always be reachable without a session. The proxy itself
+ * is a no-op today, but if we ever re-introduce edge-side auth gating,
+ * this is the allow-list to consult so password-reset / email-verify
+ * flows don't bounce back to /login.
+ */
+export const PUBLIC_PAGE_PREFIXES: ReadonlyArray<string> = [
+  "/login",
+  "/signup",
+  "/forgot-password",
+  "/reset-password",
+  "/verify-email",
+];
+
 export function proxy(_request: NextRequest) {
   return NextResponse.next();
 }

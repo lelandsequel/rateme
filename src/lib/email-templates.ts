@@ -28,6 +28,7 @@ import {
   aggregateRatings,
 } from "@/lib/aggregates";
 import type { EmailMessage } from "@/lib/email";
+import { type TimingStats, formatHrs } from "@/lib/response-timing";
 
 // ---------------------------------------------------------------------------
 // Public input shapes — kept narrow on purpose so the cron job can build them
@@ -190,6 +191,7 @@ export function repHighlight(
   rep: RepRecipient,
   ratings7d: ReadonlyArray<RatingForAgg>,
   ratings30d: ReadonlyArray<RatingForAgg>,
+  timing?: TimingStats,
 ): EmailMessage {
   const subject = `Your week on RateMyRep — ${rep.name}`;
   const agg7 = aggregateRatings(ratings7d, rep.avatarUrl ?? null);
@@ -232,12 +234,18 @@ export function repHighlight(
         </div>`
       : "";
 
+  const timingRows = timing
+    ? statRow("Connection response (avg)", formatHrs(timing.avgConnectionResponseHrs)) +
+      statRow("Rating fulfillment (avg)", formatHrs(timing.avgRatingFulfillmentHrs))
+    : "";
+
   const summaryHtml = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
     ${statRow("New ratings this week", String(newCount))}
     ${statRow("Overall (7d)", overall7 != null ? overall7.toFixed(1) : "—")}
     ${statRow("Overall (prior 30d)", overall30 != null ? overall30.toFixed(1) : "—")}
     ${statRow("Change", diff(overall7, overall30))}
     ${statRow("Status", agg30.status)}
+    ${timingRows}
   </table>`;
 
   const greetingName = (rep.name || "there").split(" ")[0] || "there";
@@ -259,6 +267,14 @@ export function repHighlight(
   lines.push(`Overall (prior 30d):    ${overall30 != null ? overall30.toFixed(1) : "—"}`);
   lines.push(`Change:                 ${diff(overall7, overall30)}`);
   lines.push(`Status:                 ${agg30.status}`);
+  if (timing) {
+    lines.push(
+      `Connection response:    ${formatHrs(timing.avgConnectionResponseHrs)} (avg)`,
+    );
+    lines.push(
+      `Rating fulfillment:     ${formatHrs(timing.avgRatingFulfillmentHrs)} (avg)`,
+    );
+  }
   if (strengths.length > 0) {
     lines.push("");
     lines.push("Top strengths (last 30 days):");
@@ -288,6 +304,7 @@ export function raterHighlight(
   rater: RaterRecipient,
   given7d: ReadonlyArray<{ createdAt: Date }>,
   given30d: ReadonlyArray<{ createdAt: Date }>,
+  timing?: TimingStats,
 ): EmailMessage {
   const subject = `Your week on RateMyRep — ${rater.name}`;
   const count7 = given7d.length;
@@ -299,10 +316,16 @@ export function raterHighlight(
   const greetingName = (rater.name || "there").split(" ")[0] || "there";
 
   // -------- HTML --------
+  const timingRowsR = timing
+    ? statRow("Connection response (avg)", formatHrs(timing.avgConnectionResponseHrs)) +
+      statRow("Rating fulfillment (avg)", formatHrs(timing.avgRatingFulfillmentHrs))
+    : "";
+
   const summaryHtml = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
     ${statRow("Ratings given this week", String(count7))}
     ${statRow("Ratings given prior 23 days", String(priorCount))}
     ${statRow("Last 30 days total", String(count30))}
+    ${timingRowsR}
   </table>`;
 
   let nudge: string;
@@ -333,11 +356,16 @@ export function raterHighlight(
     `Ratings given this week:        ${count7}`,
     `Ratings given prior 23 days:    ${priorCount}`,
     `Last 30 days total:             ${count30}`,
-    "",
-    nudge,
-    "",
-    "— RateMyRep",
   ];
+  if (timing) {
+    lines.push(
+      `Connection response:            ${formatHrs(timing.avgConnectionResponseHrs)} (avg)`,
+    );
+    lines.push(
+      `Rating fulfillment:             ${formatHrs(timing.avgRatingFulfillmentHrs)} (avg)`,
+    );
+  }
+  lines.push("", nudge, "", "— RateMyRep");
 
   return { to: rater.email, subject, html, text: lines.join("\n") };
 }
@@ -457,4 +485,99 @@ export function managerHighlight(
   lines.push("— RateMyRep");
 
   return { to: manager.email, subject, html, text: lines.join("\n") };
+}
+
+// ---------------------------------------------------------------------------
+// Auth lifecycle templates — password reset + email verification.
+//
+// These are transactional (1:1, triggered by user action) rather than
+// scheduled. They reuse `shell()` chrome but skip the weekly-summary footer
+// language so they read as one-shot account-action emails.
+//
+// Inputs are deliberately narrow — just the user fields we need + a
+// pre-built URL. We never accept a raw token here; the route layer is in
+// charge of building the URL so this module stays purely view-layer.
+// ---------------------------------------------------------------------------
+
+export interface AuthEmailUser {
+  name: string;
+  email: string;
+}
+
+export function passwordResetEmail(
+  user: AuthEmailUser,
+  resetUrl: string,
+): EmailMessage {
+  const subject = "Reset your RateMyRep password";
+  const greetingName = (user.name || "there").split(" ")[0] || "there";
+  const safeUrl = escapeHtml(resetUrl);
+
+  const inner = `${h1("Reset your password")}
+    ${p(`Hi ${greetingName}, we got a request to reset the password on your RateMyRep account.`)}
+    <p style="margin:16px 0;">
+      <a href="${safeUrl}"
+         style="display:inline-block;padding:10px 16px;background:${COLOR_ACCENT};color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">
+        Reset password
+      </a>
+    </p>
+    ${p("Or paste this link into your browser:", { muted: true })}
+    <p style="margin:0 0 12px 0;font-size:13px;line-height:1.4;color:${COLOR_MUTED};word-break:break-all;">${safeUrl}</p>
+    ${p("This link expires in 60 minutes. If you didn't ask to reset your password, you can safely ignore this email — your account is unchanged.", { muted: true })}`;
+
+  const html = shell(inner, "Reset your RateMyRep password.");
+
+  const text = [
+    `Hi ${greetingName},`,
+    "",
+    "We got a request to reset the password on your RateMyRep account.",
+    "Click (or paste) the link below to set a new one:",
+    "",
+    resetUrl,
+    "",
+    "This link expires in 60 minutes. If you didn't ask to reset your",
+    "password, you can safely ignore this email.",
+    "",
+    "— RateMyRep",
+  ].join("\n");
+
+  return { to: user.email, subject, html, text };
+}
+
+export function emailVerifyEmail(
+  user: AuthEmailUser,
+  verifyUrl: string,
+): EmailMessage {
+  const subject = "Verify your RateMyRep email";
+  const greetingName = (user.name || "there").split(" ")[0] || "there";
+  const safeUrl = escapeHtml(verifyUrl);
+
+  const inner = `${h1("Confirm your email")}
+    ${p(`Hi ${greetingName}, thanks for signing up for RateMyRep. Please confirm this is your email address so we can keep your account secure.`)}
+    <p style="margin:16px 0;">
+      <a href="${safeUrl}"
+         style="display:inline-block;padding:10px 16px;background:${COLOR_ACCENT};color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">
+        Verify email
+      </a>
+    </p>
+    ${p("Or paste this link into your browser:", { muted: true })}
+    <p style="margin:0 0 12px 0;font-size:13px;line-height:1.4;color:${COLOR_MUTED};word-break:break-all;">${safeUrl}</p>
+    ${p("This link is good for 7 days. If you didn't sign up for RateMyRep, you can ignore this email and the account will stay unverified.", { muted: true })}`;
+
+  const html = shell(inner, "Confirm your RateMyRep email.");
+
+  const text = [
+    `Hi ${greetingName},`,
+    "",
+    "Thanks for signing up for RateMyRep. Please confirm your email so we",
+    "can keep your account secure. Click (or paste) the link below:",
+    "",
+    verifyUrl,
+    "",
+    "This link is good for 7 days. If you didn't sign up for RateMyRep,",
+    "you can ignore this email.",
+    "",
+    "— RateMyRep",
+  ].join("\n");
+
+  return { to: user.email, subject, html, text };
 }

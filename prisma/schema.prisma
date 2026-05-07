@@ -83,16 +83,21 @@ enum USState {
 }
 
 model User {
-  id            String   @id @default(cuid())
-  email         String   @unique
-  name          String
-  passwordHash  String
-  role          Role
-  state         USState
-  avatarUrl     String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  lastLoginAt   DateTime?
+  id               String    @id @default(cuid())
+  email            String    @unique
+  name             String
+  passwordHash     String
+  role             Role
+  state            USState
+  avatarUrl        String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  lastLoginAt      DateTime?
+  // null = email is unverified. Set when the user clicks a verify link.
+  // Existing seeded users are grandfathered (set in seed.ts) so demo
+  // accounts keep working even if REQUIRE_EMAIL_VERIFICATION is on.
+  emailVerifiedAt  DateTime?
+  authTokens       AuthToken[]
 
   // 1:1 child profile rows (only one populated per user, matching role).
   repProfile     RepProfile?
@@ -379,4 +384,23 @@ model NotificationLog {
   createdAt    DateTime @default(now())
 
   @@index([userId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// AuthToken — single-use, short-lived tokens for password reset + email
+// verification. We store ONLY the sha256 hash of the raw token; the raw
+// token lives only in the URL we email. Compare hashes on consume.
+// ---------------------------------------------------------------------------
+
+model AuthToken {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind       String    // "password-reset" | "email-verify"
+  tokenHash  String    @unique  // sha256 of the raw token; never store raw
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId, kind])
 }
