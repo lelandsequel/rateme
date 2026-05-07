@@ -16,20 +16,24 @@ const NAV_BY_ROLE: Record<string, NavLink[]> = {
     { href: "/home", label: "Home" },
     { href: "/raters", label: "Browse Raters" },
     { href: "/connections", label: "Connections" },
+    { href: "/team", label: "Team" },
   ],
   RATER: [
     { href: "/home", label: "Home" },
     { href: "/reps", label: "Browse Reps" },
     { href: "/connections", label: "Connections" },
+    { href: "/team", label: "Team" },
   ],
   SALES_MANAGER: [
     { href: "/home", label: "Home" },
     { href: "/reps", label: "Browse Reps" },
     { href: "/raters", label: "Browse Raters" },
+    { href: "/team", label: "Team" },
   ],
   RATER_MANAGER: [
     { href: "/home", label: "Home" },
     { href: "/raters", label: "Browse Raters" },
+    { href: "/team", label: "Team" },
   ],
   ADMIN: [
     { href: "/home", label: "Home" },
