@@ -48,3 +48,4 @@ next-env.d.ts
 
 # SQLite WAL artifact
 *.db-journal
+.claude/
