@@ -84,7 +84,7 @@ describe("deterministicRecap", () => {
     expect(r.source).toBe("deterministic");
     expect(r.performanceSummary).toMatch(/excellent|solid/i);
     expect(r.performanceSummary).toMatch(/12 ratings received/i);
-    expect(r.performanceSummary).toMatch(/100% "take call again"/);
+    expect(r.performanceSummary).toMatch(/100% "buy from again"/);
     expect(r.frequency).toMatch(/12 interactions/);
     expect(r.frequency).toMatch(/~2\.8\/week/);
     expect(r.topStrengths.length).toBeGreaterThan(0);
@@ -146,7 +146,7 @@ describe("deterministicRecap", () => {
       name: "Alice",
       company: "Acme",
     });
-    expect(r.performanceSummary).toMatch(/0% "take call again"/);
+    expect(r.performanceSummary).toMatch(/0% "buy from again"/);
     expect(r.riskFlags.some((f) => f.includes("3/3"))).toBe(true);
     expect(r.riskFlags.some((f) => f.includes("100%"))).toBe(true);
   });

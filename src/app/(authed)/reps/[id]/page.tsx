@@ -194,7 +194,7 @@ export default async function RepDetailPage({
         />
         <Stat label="Total ratings" value={agg.ratingCount} />
         <Stat label="Ratings (year)" value={agg.ratingsThisYear} />
-        <Stat label="Take call again?" value={agg.takeCallAgainPct === null ? "—" : `${agg.takeCallAgainPct}%`} />
+        <Stat label="Buy from again?" value={agg.takeCallAgainPct === null ? "—" : `${agg.takeCallAgainPct}%`} />
       </div>
 
       {agg.averages && (
@@ -287,7 +287,7 @@ export default async function RepDetailPage({
                             : "bg-[#fee2e2] text-[#991b1b]"
                         }`}
                       >
-                        {r.takeCallAgain ? "would take call" : "would not"}
+                        {r.takeCallAgain ? "would buy again" : "would not"}
                       </span>
                     </div>
                   </div>

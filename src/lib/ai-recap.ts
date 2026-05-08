@@ -166,7 +166,7 @@ export function deterministicRecap(input: RecapInput): Recap {
     overall >= 4.5 ? "Excellent" : overall >= 4 ? "Solid" : overall >= 3 ? "Mixed" : "Concerning";
   const performanceSummary =
     `${sentiment} month — ${n} rating${n === 1 ? "" : "s"} ${verb} averaging ${overall.toFixed(1)} across all dimensions, ` +
-    `with a ${Math.round((yes / n) * 100)}% "take call again" rate.`;
+    `with a ${Math.round((yes / n) * 100)}% "buy from again" rate.`;
 
   const frequency = `${n} interaction${n === 1 ? "" : "s"} in 30 days (~${perWeek.toFixed(1)}/week).`;
 
@@ -188,7 +188,7 @@ export function deterministicRecap(input: RecapInput): Recap {
   }
   if (noCount > 0) {
     const pct = Math.round((noCount / n) * 100);
-    riskFlags.push(`${noCount}/${n} rater${noCount === 1 ? "" : "s"} (${pct}%) said they would not take a call again`);
+    riskFlags.push(`${noCount}/${n} rater${noCount === 1 ? "" : "s"} (${pct}%) said they would not buy from this rep again`);
   }
   if (maxGapDays >= 14 && n >= 2) {
     riskFlags.push(`Engagement gap of ${maxGapDays} days suggests dropped activity`);

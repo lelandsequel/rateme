@@ -138,7 +138,7 @@ export default async function PublicRepProfilePage({
           />
           <Stat label="Total ratings" value={agg.ratingCount} />
           <Stat
-            label="Take call again?"
+            label="Buy from again?"
             value={
               agg.takeCallAgainPct === null ? "—" : `${agg.takeCallAgainPct}%`
             }
@@ -218,7 +218,7 @@ export default async function PublicRepProfilePage({
                               : "bg-[#fee2e2] text-[#991b1b]"
                           }`}
                         >
-                          {r.takeCallAgain ? "would take call" : "would not"}
+                          {r.takeCallAgain ? "would buy again" : "would not"}
                         </span>
                       </div>
                     </div>

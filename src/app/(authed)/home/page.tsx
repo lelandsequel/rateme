@@ -118,7 +118,7 @@ async function RepHome({ userId }: { userId: string }) {
         />
         <Stat label="Status" value={<span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[agg.status]}`}>{agg.status}</span>} />
         <Stat label="Ratings (year)" value={agg.ratingsThisYear} />
-        <Stat label="Take call again?" value={agg.takeCallAgainPct === null ? "—" : `${agg.takeCallAgainPct}%`} />
+        <Stat label="Buy from again?" value={agg.takeCallAgainPct === null ? "—" : `${agg.takeCallAgainPct}%`} />
       </div>
 
       <RankingsBar userId={userId} role="REP" />
@@ -328,7 +328,7 @@ async function SalesManagerHome({ userId }: { userId: string }) {
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3 text-right">Ratings</th>
               <th className="px-4 py-3 text-right">Overall</th>
-              <th className="px-4 py-3 text-right">Take call?</th>
+              <th className="px-4 py-3 text-right">Buy again?</th>
               <th className="px-4 py-3 text-right">Active days (30d)</th>
             </tr>
           </thead>
@@ -672,7 +672,7 @@ function RecentFeedbackList({ rows, kind }: { rows: RecentRow[]; kind: "rep" | "
             <th className="px-4 py-3 text-center">FT</th>
             <th className="px-4 py-3 text-center">LN</th>
             <th className="px-4 py-3 text-center">TI</th>
-            <th className="px-4 py-3 text-center">Take call?</th>
+            <th className="px-4 py-3 text-center">Buy again?</th>
           </tr>
         </thead>
         <tbody>

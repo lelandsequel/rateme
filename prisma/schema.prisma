@@ -4,7 +4,7 @@
 // owned by the individual, portable across employers. Managers can view
 // teams of either Reps OR Raters. Connections gate ratings — you can
 // only rate a Rep you're connected to. No free text — only structured
-// 1-5 scores + a binary "would-take-call-again" flag.
+// 1-5 scores + a binary "would buy from again?" flag.
 
 generator client {
   provider = "prisma-client-js"
@@ -247,7 +247,9 @@ model Rating {
   listeningNeedsFit   Int
   trustIntegrity      Int
 
-  // Binary brutal-honesty flag.
+  // Binary "would buy from again?" flag (display label is "Buy from again?",
+  // renamed 2026-05-08 per client feedback; field name kept stable to avoid a
+  // migration).
   takeCallAgain       Boolean
 
   // Optional review comment (≤500 chars enforced in route handlers).

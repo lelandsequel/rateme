@@ -136,7 +136,7 @@ export function RatingForm({
 
       <div className="border-t border-[#e5e7eb] pt-4">
         <label className="flex items-center justify-between text-sm">
-          <span className="text-[#0f172a]">Would you take their call again?</span>
+          <span className="text-[#0f172a]">Would you buy from them again?</span>
           <input
             type="checkbox"
             checked={takeCallAgain}

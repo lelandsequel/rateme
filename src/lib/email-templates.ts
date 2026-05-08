@@ -212,7 +212,7 @@ export function repHighlight(
     }
   }
   if (agg7.takeCallAgainPct != null && agg7.takeCallAgainPct < 50) {
-    flags.push(`Only ${agg7.takeCallAgainPct}% would take your call again this week`);
+    flags.push(`Only ${agg7.takeCallAgainPct}% would buy from you again this week`);
   }
 
   // -------- HTML --------
