@@ -1,6 +1,16 @@
 /**
- * Tests for POST /api/ratings — focused on the RatingRequest completion
- * side-effect added with the rating-request workflow.
+ * Tests for POST /api/ratings — Phase 9 (dynamic question sets).
+ *
+ * Body shape: { repUserId, comment?, answers: [{ questionKey, score: 1-5 }] }
+ *
+ * Validates:
+ *   - Auth + role guard
+ *   - Connection ACCEPTED gate
+ *   - Coverage check: every question in the rep's set must be answered
+ *   - 1-5 score validation, comment ≤500
+ *   - Optional ratingRequestId workflow
+ *   - Comment trimming
+ *   - Favorite fan-out + privacy
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
@@ -33,15 +43,10 @@ interface RatingRow {
   connectionId: string;
   repUserId: string;
   raterUserId: string;
-  responsiveness: number;
-  productKnowledge: number;
-  followThrough: number;
-  listeningNeedsFit: number;
-  trustIntegrity: number;
-  takeCallAgain: boolean;
   ratingRequestId: string | null;
   comment: string | null;
   createdAt: Date;
+  answers: Array<{ id: string; questionId: string; score: number }>;
 }
 
 interface RRRow {
@@ -80,6 +85,13 @@ interface NotifLogRow {
   emailSent: boolean;
   createdAt: Date;
 }
+
+// The rep lookup the route does — needs industry.questionSet.questions[]
+// keyed by id+key. We model this directly.
+const QUESTIONS = [
+  { id: "q-a", key: "is_responsive" },
+  { id: "q-b", key: "is_knowledgeable" },
+];
 
 const state: {
   conns: ConnRow[];
@@ -121,12 +133,25 @@ vi.mock("@/lib/prisma", () => ({
     rating: {
       create: vi.fn(
         async (args: {
-          data: Omit<RatingRow, "id" | "createdAt"> & { createdAt?: Date };
+          data: Omit<RatingRow, "id" | "createdAt" | "answers"> & {
+            createdAt?: Date;
+            answers?: { create: Array<{ questionId: string; score: number }> };
+          };
         }) => {
+          const answers = (args.data.answers?.create ?? []).map((a, i) => ({
+            id: `ans-${state.nextId}-${i}`,
+            questionId: a.questionId,
+            score: a.score,
+          }));
           const row: RatingRow = {
             id: `rt-${state.nextId++}`,
+            connectionId: args.data.connectionId,
+            repUserId: args.data.repUserId,
+            raterUserId: args.data.raterUserId,
+            ratingRequestId: args.data.ratingRequestId,
+            comment: args.data.comment,
             createdAt: args.data.createdAt ?? new Date(),
-            ...args.data,
+            answers,
           };
           state.ratings.push(row);
           return row;
@@ -151,10 +176,7 @@ vi.mock("@/lib/prisma", () => ({
     },
     favorite: {
       findMany: vi.fn(
-        async (args: {
-          where: { repUserId: string };
-          select?: unknown;
-        }) => {
+        async (args: { where: { repUserId: string }; select?: unknown }) => {
           return state.favorites
             .filter((f) => f.repUserId === args.where.repUserId)
             .map((f) => ({ raterUserId: f.raterUserId }));
@@ -162,14 +184,36 @@ vi.mock("@/lib/prisma", () => ({
       ),
     },
     user: {
-      findUnique: vi.fn(async (args: { where: { id: string } }) => {
-        return state.users.find((u) => u.id === args.where.id) ?? null;
+      findUnique: vi.fn(async (args: { where: { id: string }; select?: Record<string, unknown> }) => {
+        const u = state.users.find((u) => u.id === args.where.id);
+        if (!u) return null;
+        // The rating route uses select.role + select.repProfile to load the
+        // rep + question set. notify-favorites uses a narrow select with just
+        // `id` + `name`. Distinguish by the presence of `repProfile` in select.
+        if (args.select && "repProfile" in args.select) {
+          return {
+            id: u.id,
+            name: u.name,
+            role: u.id.startsWith("rep-") ? "REP" : "RATER",
+            repProfile: u.id.startsWith("rep-")
+              ? {
+                  industry: {
+                    slug: "information-technology",
+                    questionSet: {
+                      id: "qset-standard",
+                      slug: "standard-sales",
+                      questions: QUESTIONS,
+                    },
+                  },
+                }
+              : null,
+          };
+        }
+        // Narrow shape (notify-favorites and others).
+        return { id: u.id, name: u.name };
       }),
       findMany: vi.fn(
-        async (args: {
-          where: { id: { in: string[] } };
-          select?: unknown;
-        }) => {
+        async (args: { where: { id: { in: string[] } }; select?: unknown }) => {
           return state.users
             .filter((u) => args.where.id.in.includes(u.id))
             .map((u) => ({
@@ -195,6 +239,12 @@ vi.mock("@/lib/prisma", () => ({
         },
       ),
     },
+    $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => {
+      // Pass through to the same module-level prisma mock instance. We import
+      // `prisma` lazily here to avoid the circular-ref headache.
+      const mod = await import("@/lib/prisma");
+      return fn(mod.prisma);
+    }),
   },
 }));
 
@@ -213,12 +263,10 @@ async function callRoute(body: unknown): Promise<Response> {
 
 const validBody = {
   repUserId: "rep-1",
-  responsiveness: 5,
-  productKnowledge: 4,
-  followThrough: 4,
-  listeningNeedsFit: 5,
-  trustIntegrity: 5,
-  takeCallAgain: true,
+  answers: [
+    { questionKey: "is_responsive", score: 5 },
+    { questionKey: "is_knowledgeable", score: 4 },
+  ],
 };
 
 beforeEach(() => {
@@ -230,12 +278,7 @@ beforeEach(() => {
   state.ratingRequests = [];
   state.favorites = [];
   state.users = [
-    {
-      id: "rep-1",
-      name: "Diego",
-      email: "diego@example.com",
-      pushTokens: [],
-    },
+    { id: "rep-1", name: "Diego", email: "diego@example.com", pushTokens: [] },
     {
       id: "watcher-1",
       name: "Watcher One",
@@ -255,12 +298,72 @@ beforeEach(() => {
   globalThis.fetch = vi.fn(async () => new Response("ok", { status: 200 })) as unknown as typeof fetch;
 });
 
+// ---------------------------------------------------------------------------
+// Validation
+// ---------------------------------------------------------------------------
+
+describe("POST /api/ratings — validation", () => {
+  it("400s when answers is missing", async () => {
+    const res = await callRoute({ repUserId: "rep-1" });
+    expect(res.status).toBe(400);
+  });
+
+  it("400s when an answer score is out of range", async () => {
+    const res = await callRoute({
+      ...validBody,
+      answers: [
+        { questionKey: "is_responsive", score: 6 },
+        { questionKey: "is_knowledgeable", score: 4 },
+      ],
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("400s when an answer score is missing", async () => {
+    const res = await callRoute({
+      ...validBody,
+      answers: [
+        { questionKey: "is_responsive" },
+        { questionKey: "is_knowledgeable", score: 4 },
+      ],
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("400s when a required question is not answered", async () => {
+    const res = await callRoute({
+      ...validBody,
+      answers: [{ questionKey: "is_responsive", score: 5 }],
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/missing/i);
+  });
+
+  it("400s when an unknown question key is supplied", async () => {
+    const res = await callRoute({
+      ...validBody,
+      answers: [
+        { questionKey: "is_responsive", score: 5 },
+        { questionKey: "is_knowledgeable", score: 4 },
+        { questionKey: "completely_made_up", score: 5 },
+      ],
+    });
+    expect(res.status).toBe(400);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// RatingRequest side-effect
+// ---------------------------------------------------------------------------
+
 describe("POST /api/ratings — ratingRequest side-effect", () => {
   it("creates a rating with ratingRequestId=null when none supplied", async () => {
     const res = await callRoute(validBody);
     expect(res.status).toBe(200);
     expect(state.ratings).toHaveLength(1);
     expect(state.ratings[0].ratingRequestId).toBeNull();
+    expect(state.ratings[0].answers).toHaveLength(2);
   });
 
   it("400s when ratingRequestId references a non-existent request", async () => {
@@ -385,16 +488,10 @@ describe("POST /api/ratings — ratingRequest side-effect", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Favorite-driven notification fan-out.
-//
-// On rating-create, every Rater whose Favorite points at the freshly-rated
-// Rep should get a NotificationLog row. Push + email are best-effort and
-// MUST NOT block or fail the rating-create response.
+// Comment
 // ---------------------------------------------------------------------------
 
 async function flushAsync(): Promise<void> {
-  // The fan-out is fired with `void promise`. Yield twice to let microtasks
-  // settle (await fetch + await notificationLog.create).
   for (let i = 0; i < 5; i++) {
     await new Promise((r) => setImmediate(r));
   }
@@ -409,7 +506,10 @@ describe("POST /api/ratings — optional comment", () => {
   });
 
   it("trims and stores a valid comment", async () => {
-    const res = await callRoute({ ...validBody, comment: "  great rep, super responsive  " });
+    const res = await callRoute({
+      ...validBody,
+      comment: "  great rep, super responsive  ",
+    });
     expect(res.status).toBe(200);
     expect(state.ratings).toHaveLength(1);
     expect(state.ratings[0].comment).toBe("great rep, super responsive");
@@ -443,6 +543,10 @@ describe("POST /api/ratings — optional comment", () => {
     expect(state.ratings).toHaveLength(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Favorite-driven notification fan-out.
+// ---------------------------------------------------------------------------
 
 describe("POST /api/ratings — favorite notification fan-out", () => {
   it("creates a NotificationLog row for each Rater favoriting this Rep", async () => {
@@ -478,7 +582,6 @@ describe("POST /api/ratings — favorite notification fan-out", () => {
     const pushCalls = fetchMock.mock.calls.filter(
       (c) => typeof c[0] === "string" && (c[0] as string).includes("exp.host"),
     );
-    // watcher-1 has a token → 1 push call; watcher-2 has none → 0.
     expect(pushCalls).toHaveLength(1);
     const w1Log = state.notificationLogs.find((n) => n.userId === "watcher-1");
     const w2Log = state.notificationLogs.find((n) => n.userId === "watcher-2");
@@ -503,8 +606,8 @@ describe("POST /api/ratings — favorite notification fan-out", () => {
     expect(pushCall).toBeDefined();
     const reqInit = pushCall?.[1] as RequestInit | undefined;
     const body = typeof reqInit?.body === "string" ? reqInit.body : "";
-    expect(body).toContain("Diego"); // rep IS named
-    expect(body).not.toContain("rater-1"); // rater id is not
+    expect(body).toContain("Diego");
+    expect(body).not.toContain("rater-1");
   });
 
   it("creates no logs when the rep has no favoriting raters", async () => {
@@ -527,7 +630,6 @@ describe("POST /api/ratings — favorite notification fan-out", () => {
     const res = await callRoute(validBody);
     expect(res.status).toBe(200);
     await flushAsync();
-    // Log row still written, but pushSent=false (fetch threw).
     expect(state.notificationLogs).toHaveLength(1);
     expect(state.notificationLogs[0].pushSent).toBe(false);
   });

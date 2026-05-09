@@ -133,13 +133,15 @@ beforeEach(() => {
     {
       id: "rat-1",
       connectionId: "conn-1",
-      responsiveness: 5,
-      productKnowledge: 4,
-      followThrough: 5,
-      listeningNeedsFit: 4,
-      trustIntegrity: 5,
-      takeCallAgain: true,
+      comment: null,
       createdAt: new Date("2026-04-10"),
+      answers: [
+        {
+          score: 5,
+          questionId: "q-1",
+          question: { key: "is_responsive", ord: 0, labelEn: "Is Responsive", labelEs: "Es Receptivo", labelPt: "É Responsivo" },
+        },
+      ],
       rater: {
         id: "rater-secret",
         name: "Bulma Briefs",

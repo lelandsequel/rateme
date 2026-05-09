@@ -3,6 +3,13 @@
 // All inputs are plain rating-shaped records with a `createdAt`. No DB
 // access — the API route hydrates rows then calls into here. "Now" is
 // always injectable so callers (and tests) can pin time.
+//
+// Phase 9 schema rewrite: ratings carry dynamic per-question answers,
+// not 5 fixed dimension columns. Each helper takes rows that expose
+// `answers: Array<{ score, question: { key, labelEn, ord } }>` (the
+// shape Prisma returns when you `include: { answers: { include:
+// { question: true } } }`). We compute "score per rating" as the mean
+// of that rating's answer scores, then aggregate from there.
 
 export interface MonthOverMonth {
   thisMonth: number;
@@ -11,20 +18,17 @@ export interface MonthOverMonth {
   deltaPct: number | null;
 }
 
-export interface DimensionScores {
-  responsiveness: number;
-  productKnowledge: number;
-  followThrough: number;
-  listeningNeedsFit: number;
-  trustIntegrity: number;
+export interface AnswerWithQuestion {
+  score: number;
+  question: { key: string; labelEn: string; ord: number };
 }
 
-interface DimsRow extends DimensionScores {
+export interface AnswersRow {
+  answers: ReadonlyArray<AnswerWithQuestion>;
   createdAt: Date;
 }
 
-interface RatingPairRow extends DimensionScores {
-  createdAt: Date;
+export interface AnswersPairRow extends AnswersRow {
   repUserId: string;
   raterUserId: string;
 }
@@ -60,14 +64,12 @@ function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }
 
-function dimsAvg(r: DimensionScores): number {
-  return (
-    r.responsiveness +
-    r.productKnowledge +
-    r.followThrough +
-    r.listeningNeedsFit +
-    r.trustIntegrity
-  ) / 5;
+/** Mean of a rating's answer scores. 0 when the rating has no answers. */
+function ratingMean(r: AnswersRow): number {
+  if (r.answers.length === 0) return 0;
+  let sum = 0;
+  for (const a of r.answers) sum += a.score;
+  return sum / r.answers.length;
 }
 
 export function totalFeedbackMoM(
@@ -87,7 +89,7 @@ export function totalFeedbackMoM(
 }
 
 export function avgScoreMoM(
-  ratings: ReadonlyArray<DimsRow>,
+  ratings: ReadonlyArray<AnswersRow>,
   now: Date = new Date(),
 ): MonthOverMonth {
   const thisStart = startOfMonth(now);
@@ -97,8 +99,9 @@ export function avgScoreMoM(
   let lastSum = 0;
   let lastN = 0;
   for (const r of ratings) {
+    if (r.answers.length === 0) continue;
     const t = r.createdAt.getTime();
-    const score = dimsAvg(r);
+    const score = ratingMean(r);
     if (t >= thisStart.getTime()) {
       thisSum += score;
       thisN++;
@@ -112,40 +115,48 @@ export function avgScoreMoM(
   return { thisMonth, lastMonth, deltaPct: deltaPct(thisMonth, lastMonth) };
 }
 
+export interface PerQuestionTeamAvg {
+  key: string;
+  labelEn: string;
+  avg: number;
+}
+
 /**
- * Per-question avg over the trailing 30 days. Null when there are no
- * ratings in that window.
+ * Per-question avg over the trailing 30 days, across the team. Returns
+ * an array sorted by (first-seen ord). Empty array when no in-window
+ * answers exist.
  */
-export function teamDimensionAverages(
-  ratings: ReadonlyArray<DimsRow>,
+export function teamPerQuestionAverages(
+  ratings: ReadonlyArray<AnswersRow>,
   now: Date = new Date(),
-): DimensionScores | null {
+): PerQuestionTeamAvg[] {
   const cutoff = now.getTime() - 30 * DAY_MS;
-  const sums: DimensionScores = {
-    responsiveness: 0,
-    productKnowledge: 0,
-    followThrough: 0,
-    listeningNeedsFit: 0,
-    trustIntegrity: 0,
-  };
-  let n = 0;
+  const perKey = new Map<string, { labelEn: string; ord: number; sum: number; n: number }>();
   for (const r of ratings) {
     if (r.createdAt.getTime() < cutoff) continue;
-    sums.responsiveness += r.responsiveness;
-    sums.productKnowledge += r.productKnowledge;
-    sums.followThrough += r.followThrough;
-    sums.listeningNeedsFit += r.listeningNeedsFit;
-    sums.trustIntegrity += r.trustIntegrity;
-    n++;
+    for (const a of r.answers) {
+      const slot = perKey.get(a.question.key);
+      if (slot) {
+        slot.sum += a.score;
+        slot.n++;
+      } else {
+        perKey.set(a.question.key, {
+          labelEn: a.question.labelEn,
+          ord: a.question.ord,
+          sum: a.score,
+          n: 1,
+        });
+      }
+    }
   }
-  if (n === 0) return null;
-  return {
-    responsiveness: round1(sums.responsiveness / n),
-    productKnowledge: round1(sums.productKnowledge / n),
-    followThrough: round1(sums.followThrough / n),
-    listeningNeedsFit: round1(sums.listeningNeedsFit / n),
-    trustIntegrity: round1(sums.trustIntegrity / n),
-  };
+  return Array.from(perKey.entries())
+    .map(([key, slot]) => ({ key, labelEn: slot.labelEn, avg: round1(slot.sum / slot.n) }))
+    .sort((a, b) => {
+      // Same secondary sort as aggregateRatings — preserve question ord.
+      const aOrd = perKey.get(a.key)!.ord;
+      const bOrd = perKey.get(b.key)!.ord;
+      return aOrd - bOrd;
+    });
 }
 
 export interface ResolutionRate {
@@ -156,18 +167,18 @@ export interface ResolutionRate {
 }
 
 /**
- * Of all (rep, rater) pairs that ever produced a rating with any dim ≤ 3,
- * what fraction had a follow-up rating from the SAME rater within
- * `withinDays` (default 60) where ALL five dims > 3?
+ * Of all (rep, rater) pairs that ever produced a rating with ANY answer
+ * score ≤ 3, what fraction had a follow-up rating from the SAME rater
+ * within `withinDays` (default 60) where ALL answer scores > 3?
  */
 export function resolutionRate(
-  ratings: ReadonlyArray<RatingPairRow>,
+  ratings: ReadonlyArray<AnswersPairRow>,
   withinDays: number = 60,
 ): ResolutionRate {
   const windowMs = withinDays * DAY_MS;
 
   // Group rows per (rep, rater) pair, sorted by createdAt asc.
-  const pairs = new Map<string, RatingPairRow[]>();
+  const pairs = new Map<string, AnswersPairRow[]>();
   for (const r of ratings) {
     const key = `${r.repUserId}::${r.raterUserId}`;
     const arr = pairs.get(key);
@@ -181,13 +192,9 @@ export function resolutionRate(
     arr.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
     let firstAtRiskAt: number | null = null;
     for (const r of arr) {
-      const min = Math.min(
-        r.responsiveness,
-        r.productKnowledge,
-        r.followThrough,
-        r.listeningNeedsFit,
-        r.trustIntegrity,
-      );
+      if (r.answers.length === 0) continue;
+      let min = Infinity;
+      for (const a of r.answers) if (a.score < min) min = a.score;
       if (firstAtRiskAt === null) {
         if (min <= 3) firstAtRiskAt = r.createdAt.getTime();
       } else {
@@ -219,7 +226,7 @@ export interface WeeklyTrendBucket {
  * for ratings in that week (Sun-anchored UTC). Empty buckets → null avg.
  */
 export function weeklyTrendSeries(
-  ratings: ReadonlyArray<DimsRow>,
+  ratings: ReadonlyArray<AnswersRow>,
   now: Date = new Date(),
 ): WeeklyTrendBucket[] {
   // Anchor: last full midnight, then back up to start of week (Sunday UTC).
@@ -234,11 +241,12 @@ export function weeklyTrendSeries(
   }
 
   for (const r of ratings) {
+    if (r.answers.length === 0) continue;
     const t = r.createdAt.getTime();
     if (t < buckets[0].start || t >= buckets[buckets.length - 1].end) continue;
     const idx = Math.floor((t - buckets[0].start) / (7 * DAY_MS));
     if (idx < 0 || idx >= buckets.length) continue;
-    buckets[idx].sum += dimsAvg(r);
+    buckets[idx].sum += ratingMean(r);
     buckets[idx].n++;
   }
 

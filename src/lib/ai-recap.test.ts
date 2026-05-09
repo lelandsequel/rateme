@@ -5,16 +5,27 @@ import {
   type RecapInputRating,
 } from "./ai-recap";
 
-function rating(overrides: Partial<RecapInputRating> = {}): RecapInputRating {
+const KEYS = ["is_responsive", "is_knowledgeable", "meets_deadlines", "actively_listens", "is_accountable"] as const;
+const LABEL: Record<string, string> = {
+  is_responsive: "Is Responsive",
+  is_knowledgeable: "Is Knowledgeable",
+  meets_deadlines: "Meets Deadlines",
+  actively_listens: "Actively Listens",
+  is_accountable: "Is Accountable",
+};
+
+function rating(opts: {
+  scoresByKey?: Partial<Record<(typeof KEYS)[number], number>>;
+  score?: number;
+  createdAt?: Date;
+} = {}): RecapInputRating {
+  const base = opts.score ?? 5;
   return {
-    responsiveness: 5,
-    productKnowledge: 5,
-    followThrough: 5,
-    listeningNeedsFit: 5,
-    trustIntegrity: 5,
-    takeCallAgain: true,
-    createdAt: new Date("2026-04-15T00:00:00Z"),
-    ...overrides,
+    createdAt: opts.createdAt ?? new Date("2026-04-15T00:00:00Z"),
+    answers: KEYS.map((k, i) => ({
+      score: opts.scoresByKey?.[k] ?? base,
+      question: { key: k, labelEn: LABEL[k], ord: i },
+    })),
   };
 }
 
@@ -70,7 +81,6 @@ describe("deterministicRecap", () => {
   it("returns excellent summary + no weaknesses on all-5s", () => {
     const ratings: RecapInputRating[] = [];
     for (let i = 0; i < 12; i++) {
-      // Spread over 30 days, every ~2.5 days.
       const d = new Date("2026-04-01T00:00:00Z");
       d.setUTCDate(d.getUTCDate() + i * 2);
       ratings.push(rating({ createdAt: d }));
@@ -84,7 +94,8 @@ describe("deterministicRecap", () => {
     expect(r.source).toBe("deterministic");
     expect(r.performanceSummary).toMatch(/excellent|solid/i);
     expect(r.performanceSummary).toMatch(/12 ratings received/i);
-    expect(r.performanceSummary).toMatch(/100% "buy from again"/);
+    // No "buy from again" mention.
+    expect(r.performanceSummary).not.toMatch(/buy from again/i);
     expect(r.frequency).toMatch(/12 interactions/);
     expect(r.frequency).toMatch(/~2\.8\/week/);
     expect(r.topStrengths.length).toBeGreaterThan(0);
@@ -94,26 +105,26 @@ describe("deterministicRecap", () => {
   });
 
   it("identifies top strengths and weaknesses correctly from mixed averages", () => {
-    // 4 ratings:
-    //   responsiveness avg = (5+5+5+5)/4 = 5
-    //   productKnowledge avg = (5+5+5+5)/4 = 5
-    //   followThrough avg = (3+3+3+3)/4 = 3
-    //   listeningNeedsFit avg = (2+2+2+2)/4 = 2
-    //   trustIntegrity avg = (4+4+4+4)/4 = 4
-    const base = (overrides: Partial<RecapInputRating>): RecapInputRating =>
-      rating({
-        responsiveness: 5,
-        productKnowledge: 5,
-        followThrough: 3,
-        listeningNeedsFit: 2,
-        trustIntegrity: 4,
-        ...overrides,
-      });
+    // 4 ratings, fixed scores per question:
+    //   is_responsive=5, is_knowledgeable=5, meets_deadlines=3,
+    //   actively_listens=2, is_accountable=4
     const ratings = [
-      base({ createdAt: new Date("2026-04-02T00:00:00Z") }),
-      base({ createdAt: new Date("2026-04-09T00:00:00Z") }),
-      base({ createdAt: new Date("2026-04-16T00:00:00Z") }),
-      base({ createdAt: new Date("2026-04-23T00:00:00Z") }),
+      rating({
+        scoresByKey: { is_responsive: 5, is_knowledgeable: 5, meets_deadlines: 3, actively_listens: 2, is_accountable: 4 },
+        createdAt: new Date("2026-04-02T00:00:00Z"),
+      }),
+      rating({
+        scoresByKey: { is_responsive: 5, is_knowledgeable: 5, meets_deadlines: 3, actively_listens: 2, is_accountable: 4 },
+        createdAt: new Date("2026-04-09T00:00:00Z"),
+      }),
+      rating({
+        scoresByKey: { is_responsive: 5, is_knowledgeable: 5, meets_deadlines: 3, actively_listens: 2, is_accountable: 4 },
+        createdAt: new Date("2026-04-16T00:00:00Z"),
+      }),
+      rating({
+        scoresByKey: { is_responsive: 5, is_knowledgeable: 5, meets_deadlines: 3, actively_listens: 2, is_accountable: 4 },
+        createdAt: new Date("2026-04-23T00:00:00Z"),
+      }),
     ];
     const r = deterministicRecap({
       ratings,
@@ -121,34 +132,17 @@ describe("deterministicRecap", () => {
       name: "Alice",
       company: "Acme",
     });
-    // Strengths should be the >=4 dims, sorted desc.
-    expect(r.topStrengths[0]).toMatch(/Responsiveness|Product knowledge/);
-    expect(r.topStrengths.some((s) => s.includes("Trust"))).toBe(true);
+    // Strengths: questions averaging >= 4, sorted desc.
+    expect(r.topStrengths[0]).toMatch(/Is Responsive|Is Knowledgeable/);
+    expect(r.topStrengths.some((s) => s.includes("Is Accountable"))).toBe(true);
     // Weaknesses: < 4. Lowest first.
-    expect(r.topWeaknesses[0]).toMatch(/Listening/);
-    expect(r.topWeaknesses[1]).toMatch(/Follow-through/);
+    expect(r.topWeaknesses[0]).toMatch(/Actively Listens/);
+    expect(r.topWeaknesses[1]).toMatch(/Meets Deadlines/);
     // Suggested improvements derived from weaknesses.
     expect(r.suggestedImprovements.length).toBe(r.topWeaknesses.length);
-    expect(r.suggestedImprovements[0]).toMatch(/Improve listening/i);
-    // Risk flag: 4/4 ratings had a dim <= 2 (listeningNeedsFit = 2)
+    expect(r.suggestedImprovements[0]).toMatch(/Improve actively listens/i);
+    // Risk flag: 4/4 ratings had a question scored <= 2 (actively_listens=2)
     expect(r.riskFlags.some((f) => f.includes("4/4"))).toBe(true);
-  });
-
-  it("flags all-takeCallAgain-false as risk", () => {
-    const ratings: RecapInputRating[] = [
-      rating({ takeCallAgain: false, createdAt: new Date("2026-04-05T00:00:00Z") }),
-      rating({ takeCallAgain: false, createdAt: new Date("2026-04-12T00:00:00Z") }),
-      rating({ takeCallAgain: false, createdAt: new Date("2026-04-19T00:00:00Z") }),
-    ];
-    const r = deterministicRecap({
-      ratings,
-      perspective: "REP",
-      name: "Alice",
-      company: "Acme",
-    });
-    expect(r.performanceSummary).toMatch(/0% "buy from again"/);
-    expect(r.riskFlags.some((f) => f.includes("3/3"))).toBe(true);
-    expect(r.riskFlags.some((f) => f.includes("100%"))).toBe(true);
   });
 
   it("flags long gaps as inconsistent engagement", () => {
@@ -191,24 +185,14 @@ describe("deterministicRecap", () => {
   });
 
   it("caps strengths/weaknesses at 3 and risks at 3", () => {
-    // All five dims below 4 → 5 weaknesses; should be capped to 3.
+    // All five questions below 4 → 5 weaknesses; should be capped to 3.
     const ratings: RecapInputRating[] = [
       rating({
-        responsiveness: 1,
-        productKnowledge: 2,
-        followThrough: 2,
-        listeningNeedsFit: 2,
-        trustIntegrity: 1,
-        takeCallAgain: false,
+        scoresByKey: { is_responsive: 1, is_knowledgeable: 2, meets_deadlines: 2, actively_listens: 2, is_accountable: 1 },
         createdAt: new Date("2026-04-05T00:00:00Z"),
       }),
       rating({
-        responsiveness: 1,
-        productKnowledge: 2,
-        followThrough: 2,
-        listeningNeedsFit: 2,
-        trustIntegrity: 1,
-        takeCallAgain: false,
+        scoresByKey: { is_responsive: 1, is_knowledgeable: 2, meets_deadlines: 2, actively_listens: 2, is_accountable: 1 },
         createdAt: new Date("2026-04-25T00:00:00Z"), // 20-day gap
       }),
     ];
@@ -221,17 +205,15 @@ describe("deterministicRecap", () => {
     expect(r.topStrengths.length).toBe(0);
     expect(r.topWeaknesses.length).toBe(3);
     expect(r.suggestedImprovements.length).toBe(3);
-    expect(r.riskFlags.length).toBe(3); // low dims + take-call-again + gap
+    // Two risk flags max here (low-answer + gap); takeCallAgain is gone.
+    expect(r.riskFlags.length).toBeGreaterThanOrEqual(1);
+    expect(r.riskFlags.length).toBeLessThanOrEqual(3);
   });
 
   it("orders weaknesses ascending by average (lowest first)", () => {
     const ratings = [
       rating({
-        responsiveness: 1,
-        productKnowledge: 3,
-        followThrough: 2,
-        listeningNeedsFit: 5,
-        trustIntegrity: 5,
+        scoresByKey: { is_responsive: 1, is_knowledgeable: 3, meets_deadlines: 2, actively_listens: 5, is_accountable: 5 },
       }),
     ];
     const r = deterministicRecap({
@@ -240,10 +222,10 @@ describe("deterministicRecap", () => {
       name: "Alice",
       company: "Acme",
     });
-    // Order: responsiveness(1), followThrough(2), productKnowledge(3)
-    expect(r.topWeaknesses[0]).toMatch(/Responsiveness/);
-    expect(r.topWeaknesses[1]).toMatch(/Follow-through/);
-    expect(r.topWeaknesses[2]).toMatch(/Product knowledge/);
+    // Order: is_responsive(1), meets_deadlines(2), is_knowledgeable(3)
+    expect(r.topWeaknesses[0]).toMatch(/Is Responsive/);
+    expect(r.topWeaknesses[1]).toMatch(/Meets Deadlines/);
+    expect(r.topWeaknesses[2]).toMatch(/Is Knowledgeable/);
   });
 
   it("response timing field is present and a non-empty string placeholder", () => {

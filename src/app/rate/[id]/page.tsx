@@ -13,7 +13,7 @@ import {
   RatingRequestStatus,
   RatingRequestType,
 } from "@prisma/client";
-import { RatingForm } from "@/app/(authed)/reps/[id]/rate/RatingForm";
+import { RatingForm, type RatingFormQuestion } from "@/app/(authed)/reps/[id]/rate/RatingForm";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +28,19 @@ export default async function RatePublicPage({
     where: { id },
     include: {
       forRep: {
-        include: { repProfile: { include: { industry: true } } },
+        include: {
+          repProfile: {
+            include: {
+              industry: {
+                include: {
+                  questionSet: {
+                    include: { questions: { orderBy: { ord: "asc" } } },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     },
   });
@@ -60,6 +72,24 @@ export default async function RatePublicPage({
     return <Notice title="Invalid invitation" body="The rep on this invitation no longer has a profile." />;
   }
 
+  const set = rep.repProfile.industry.questionSet;
+  if (!set || set.questions.length === 0) {
+    return (
+      <Notice
+        title="Questions not configured"
+        body="This rep's industry doesn't have a question set yet. Try again later."
+      />
+    );
+  }
+  const questions: RatingFormQuestion[] = set.questions.map((q) => ({
+    id: q.id,
+    key: q.key,
+    ord: q.ord,
+    labelEn: q.labelEn,
+    labelEs: q.labelEs,
+    labelPt: q.labelPt,
+  }));
+
   const session = await auth();
 
   if (rr.type === RatingRequestType.ONE_TIME) {
@@ -73,6 +103,7 @@ export default async function RatePublicPage({
       sessionUserId: session?.user?.id ?? null,
       sessionEmail: session?.user?.email ?? null,
       sessionRole: session?.user?.role ?? null,
+      questions,
     });
   }
 
@@ -98,6 +129,7 @@ export default async function RatePublicPage({
       </header>
       <RatingForm
         repUserId={rep.id}
+        questions={questions}
         ratingRequestId={rr.id}
         redirectAfter="/connections"
       />
@@ -115,6 +147,7 @@ async function ONE_TIME_view({
   sessionUserId,
   sessionEmail,
   sessionRole,
+  questions,
 }: {
   rrId: string;
   repUserId: string;
@@ -125,6 +158,7 @@ async function ONE_TIME_view({
   sessionUserId: string | null;
   sessionEmail: string | null;
   sessionRole: string | null;
+  questions: ReadonlyArray<RatingFormQuestion>;
 }) {
   // Lookup the user behind toEmail.
   const existing = toEmail
@@ -175,6 +209,7 @@ async function ONE_TIME_view({
           </header>
           <RatingForm
             repUserId={repUserId}
+            questions={questions}
             ratingRequestId={rrId}
             redirectAfter="/connections"
           />
@@ -250,6 +285,7 @@ async function ONE_TIME_view({
         </header>
         <RatingForm
           repUserId={repUserId}
+          questions={questions}
           ratingRequestId={rrId}
           redirectAfter="/connections"
         />

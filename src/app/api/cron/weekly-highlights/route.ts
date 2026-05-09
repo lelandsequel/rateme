@@ -339,12 +339,12 @@ async function processManager(user: UserMin, ctx: WindowCtx): Promise<"sent" | "
 
 function ratingForAggSelect() {
   return {
-    responsiveness: true,
-    productKnowledge: true,
-    followThrough: true,
-    listeningNeedsFit: true,
-    trustIntegrity: true,
-    takeCallAgain: true,
     createdAt: true,
+    answers: {
+      select: {
+        score: true,
+        question: { select: { key: true, labelEn: true, ord: true } },
+      },
+    },
   } as const;
 }

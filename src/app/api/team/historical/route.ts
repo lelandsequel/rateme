@@ -25,7 +25,7 @@ import {
   monthlyTeamAggregates,
   memberMonthlyDeltas,
 } from "@/lib/manager-historical";
-import { resolutionRate } from "@/lib/manager-stats";
+import { resolutionRate, teamPerQuestionAverages } from "@/lib/manager-stats";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -64,6 +64,7 @@ export async function GET() {
       return {
         monthly: monthlyTeamAggregates([]),
         memberDeltas: [],
+        perQuestion: [],
         resolutionRate: { atRiskPairs: 0, resolvedPairs: 0, rate: null },
         requestsSentByRep: [],
         engagement: { requestsSent: 0, ratingsReceived: 0, pct: null },
@@ -83,14 +84,15 @@ export async function GET() {
     const ratings = await prisma.rating.findMany({
       where: ratingWhere,
       select: {
-        responsiveness: true,
-        productKnowledge: true,
-        followThrough: true,
-        listeningNeedsFit: true,
-        trustIntegrity: true,
         createdAt: true,
         repUserId: true,
         raterUserId: true,
+        answers: {
+          select: {
+            score: true,
+            question: { select: { key: true, labelEn: true, ord: true } },
+          },
+        },
       },
     });
 
@@ -100,6 +102,9 @@ export async function GET() {
       memberId: isRepManager ? r.repUserId : r.raterUserId,
     }));
     const memberDeltas = memberMonthlyDeltas(ratingsWithMemberId, members);
+
+    // Team-wide per-question averages over the trailing 30 days.
+    const perQuestion = teamPerQuestionAverages(ratings);
 
     // Pair-level resolution rate is independent of manager type — the helper
     // groups by (rep, rater) pair and looks for a follow-up by the same rater.
@@ -165,6 +170,7 @@ export async function GET() {
     return {
       monthly,
       memberDeltas,
+      perQuestion,
       resolutionRate: resolution,
       requestsSentByRep,
       engagement: { requestsSent, ratingsReceived, pct },

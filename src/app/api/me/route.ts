@@ -205,6 +205,7 @@ function serialize(user: FullUser) {
     role: user.role,
     state: user.state,
     avatarUrl: user.avatarUrl,
+    locale: user.locale,
     createdAt: user.createdAt,
     repProfile: user.repProfile
       ? {

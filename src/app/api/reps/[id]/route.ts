@@ -1,8 +1,8 @@
 // GET /api/reps/:id — full rep detail page payload.
 //
-// Includes profile + rating aggregates (avg per dim, takeCallAgain%, status
-// tier). Ratings list is on a separate endpoint to keep this fast and
-// pageable.
+// Includes profile + rating aggregates (per-question avg, overall, status
+// tier, headline 0-10 score). Ratings list is on a separate endpoint to
+// keep this fast and pageable.
 
 import { Role } from "@prisma/client";
 
@@ -25,13 +25,13 @@ export async function GET(
         repProfile: { include: { industry: { select: { slug: true, name: true } } } },
         ratingsReceived: {
           select: {
-            responsiveness: true,
-            productKnowledge: true,
-            followThrough: true,
-            listeningNeedsFit: true,
-            trustIntegrity: true,
-            takeCallAgain: true,
             createdAt: true,
+            answers: {
+              select: {
+                score: true,
+                question: { select: { key: true, labelEn: true, ord: true } },
+              },
+            },
           },
         },
       },

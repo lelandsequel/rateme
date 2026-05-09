@@ -144,6 +144,7 @@ async function loadEvents(userId: string, since: Date): Promise<FeedEvent[]> {
       orderBy: { createdAt: "desc" },
       take: 50,
       include: {
+        answers: { select: { score: true } },
         rater: {
           include: {
             raterProfile: {
@@ -160,6 +161,7 @@ async function loadEvents(userId: string, since: Date): Promise<FeedEvent[]> {
       orderBy: { createdAt: "desc" },
       take: 50,
       include: {
+        answers: { select: { score: true } },
         rep: {
           include: { repProfile: true },
         },
@@ -363,20 +365,11 @@ function describeOtherSide(
   return c.rep.name;
 }
 
-function averageOverall(r: {
-  responsiveness: number;
-  productKnowledge: number;
-  followThrough: number;
-  listeningNeedsFit: number;
-  trustIntegrity: number;
-}): number {
-  const sum =
-    r.responsiveness +
-    r.productKnowledge +
-    r.followThrough +
-    r.listeningNeedsFit +
-    r.trustIntegrity;
-  return Math.round((sum / 5) * 10) / 10;
+function averageOverall(r: { answers: ReadonlyArray<{ score: number }> }): number {
+  if (r.answers.length === 0) return 0;
+  let sum = 0;
+  for (const a of r.answers) sum += a.score;
+  return Math.round((sum / r.answers.length) * 10) / 10;
 }
 
 // ---------------------------------------------------------------------------

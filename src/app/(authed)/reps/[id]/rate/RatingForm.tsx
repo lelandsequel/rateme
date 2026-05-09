@@ -3,50 +3,44 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-const DIMENSIONS = [
-  { key: "responsiveness", label: "Responsiveness" },
-  { key: "productKnowledge", label: "Product knowledge" },
-  { key: "followThrough", label: "Follow-through" },
-  { key: "listeningNeedsFit", label: "Listening / needs fit" },
-  { key: "trustIntegrity", label: "Trust / integrity" },
-] as const;
-
-type DimKey = (typeof DIMENSIONS)[number]["key"];
-
 const COMMENT_MAX = 500;
+
+export interface RatingFormQuestion {
+  id: string;
+  key: string;
+  ord: number;
+  labelEn: string;
+  labelEs: string;
+  labelPt: string;
+}
 
 export function RatingForm({
   repUserId,
+  questions,
   ratingRequestId,
   redirectAfter,
 }: {
   repUserId: string;
+  questions: ReadonlyArray<RatingFormQuestion>;
   ratingRequestId?: string;
   redirectAfter?: string;
 }) {
   const router = useRouter();
-  const [scores, setScores] = useState<Record<DimKey, number>>({
-    responsiveness: 4,
-    productKnowledge: 4,
-    followThrough: 4,
-    listeningNeedsFit: 4,
-    trustIntegrity: 4,
+  // Default every question to 4 (the most common "I had a fine time" baseline).
+  const [scores, setScores] = useState<Record<string, number>>(() => {
+    const init: Record<string, number> = {};
+    for (const q of questions) init[q.key] = 4;
+    return init;
   });
-  const [takeCallAgain, setTakeCallAgain] = useState(true);
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
-  // Headline star: live mean of the five sliders.
-  const overall =
-    (scores.responsiveness +
-      scores.productKnowledge +
-      scores.followThrough +
-      scores.listeningNeedsFit +
-      scores.trustIntegrity) /
-    5;
-  const overallRounded = Math.round(overall * 10) / 10;
+  // Headline overall (0-10) — live mean of submitted scores * 2.
+  const sum = Object.values(scores).reduce((a, b) => a + b, 0);
+  const overall = questions.length === 0 ? 0 : sum / questions.length;
+  const overall10 = Math.round(overall * 2 * 100) / 100;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -61,8 +55,7 @@ export function RatingForm({
       }
       const payload: Record<string, unknown> = {
         repUserId,
-        ...scores,
-        takeCallAgain,
+        answers: questions.map((q) => ({ questionKey: q.key, score: scores[q.key] })),
       };
       if (ratingRequestId) payload.ratingRequestId = ratingRequestId;
       if (trimmed.length > 0) payload.comment = trimmed;
@@ -105,27 +98,28 @@ export function RatingForm({
           </div>
           <div className="text-[28px] font-bold text-[#0f172a] leading-tight">
             <span className="text-[#fbbf24] mr-1">★</span>
-            {overallRounded.toFixed(1)}
+            {overall10.toFixed(2)}
+            <span className="text-sm text-[#94a3b8] font-normal"> / 10</span>
           </div>
         </div>
-        <div className="text-xs text-[#94a3b8] max-w-[180px] text-right">
-          Auto-derived from your 5 ratings below
+        <div className="text-xs text-[#94a3b8] max-w-[200px] text-right">
+          Auto-derived from your {questions.length} ratings below
         </div>
       </div>
 
-      {DIMENSIONS.map((d) => (
-        <div key={d.key}>
+      {questions.map((q) => (
+        <div key={q.key}>
           <div className="flex items-center justify-between text-sm mb-2">
-            <span className="text-[#0f172a]">{d.label}</span>
-            <span className="text-[#dc2626] font-semibold">{scores[d.key]}</span>
+            <span className="text-[#0f172a]">{q.labelEn}</span>
+            <span className="text-[#dc2626] font-semibold">{scores[q.key]}</span>
           </div>
           <input
             type="range"
             min={1}
             max={5}
             step={1}
-            value={scores[d.key]}
-            onChange={(e) => setScores({ ...scores, [d.key]: Number(e.target.value) })}
+            value={scores[q.key]}
+            onChange={(e) => setScores({ ...scores, [q.key]: Number(e.target.value) })}
             className="w-full accent-[#dc2626]"
           />
           <div className="flex justify-between text-[10px] text-[#94a3b8] mt-1">
@@ -133,18 +127,6 @@ export function RatingForm({
           </div>
         </div>
       ))}
-
-      <div className="border-t border-[#e5e7eb] pt-4">
-        <label className="flex items-center justify-between text-sm">
-          <span className="text-[#0f172a]">Would you buy from them again?</span>
-          <input
-            type="checkbox"
-            checked={takeCallAgain}
-            onChange={(e) => setTakeCallAgain(e.target.checked)}
-            className="w-5 h-5 accent-[#dc2626]"
-          />
-        </label>
-      </div>
 
       <div className="border-t border-[#e5e7eb] pt-4">
         <label className="block text-sm text-[#0f172a] mb-1.5">

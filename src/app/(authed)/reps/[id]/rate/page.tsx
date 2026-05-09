@@ -1,10 +1,13 @@
 // Rating form for a connected rater to rate a rep.
+//
+// Server-loads the rep's industry's question set so the form renders with
+// the right N (typically 10) questions tied to that industry.
 
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ConnectionStatus, Role } from "@prisma/client";
-import { RatingForm } from "./RatingForm";
+import { RatingForm, type RatingFormQuestion } from "./RatingForm";
 
 export const dynamic = "force-dynamic";
 
@@ -37,9 +40,44 @@ export default async function RatePage({
 
   const rep = await prisma.user.findUnique({
     where: { id: repUserId },
-    include: { repProfile: { include: { industry: true } } },
+    include: {
+      repProfile: {
+        include: {
+          industry: {
+            include: {
+              questionSet: {
+                include: {
+                  questions: { orderBy: { ord: "asc" } },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
   });
   if (!rep?.repProfile) return <p>Rep not found.</p>;
+
+  const set = rep.repProfile.industry.questionSet;
+  if (!set || set.questions.length === 0) {
+    return (
+      <div className="space-y-3">
+        <h1 className="text-2xl font-bold">Questions not configured</h1>
+        <p className="text-[#475569]">
+          This rep&apos;s industry doesn&apos;t have a question set yet. Try again later.
+        </p>
+      </div>
+    );
+  }
+
+  const questions: RatingFormQuestion[] = set.questions.map((q) => ({
+    id: q.id,
+    key: q.key,
+    ord: q.ord,
+    labelEn: q.labelEn,
+    labelEs: q.labelEs,
+    labelPt: q.labelPt,
+  }));
 
   return (
     <div className="space-y-6 max-w-xl">
@@ -47,8 +85,13 @@ export default async function RatePage({
         <p className="text-xs uppercase tracking-wider text-[#94a3b8]">Rate</p>
         <h1 className="text-3xl font-bold mt-1">{rep.name}</h1>
         <p className="text-[#475569]">{rep.repProfile.title} · {rep.repProfile.company}</p>
+        <p className="text-xs text-[#94a3b8] mt-1">{set.name} · {set.questions.length} questions</p>
       </header>
-      <RatingForm repUserId={rep.id} ratingRequestId={ratingRequestId} />
+      <RatingForm
+        repUserId={rep.id}
+        questions={questions}
+        ratingRequestId={ratingRequestId}
+      />
     </div>
   );
 }

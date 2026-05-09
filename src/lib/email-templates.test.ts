@@ -17,16 +17,21 @@ import {
 } from "./email-templates";
 import type { RatingForAgg } from "./aggregates";
 
-function rating(overrides: Partial<RatingForAgg> = {}): RatingForAgg {
+// 5-question rating where every answer = `score` (default 5). Pass
+// `scoresByKey` for finer control.
+function rating(opts: {
+  score?: number;
+  scoresByKey?: Partial<Record<string, number>>;
+  createdAt?: Date;
+} = {}): RatingForAgg {
+  const base = opts.score ?? 5;
+  const order = ["a", "b", "c", "d", "e"];
   return {
-    responsiveness: 5,
-    productKnowledge: 5,
-    followThrough: 5,
-    listeningNeedsFit: 5,
-    trustIntegrity: 5,
-    takeCallAgain: true,
-    createdAt: new Date(),
-    ...overrides,
+    createdAt: opts.createdAt ?? new Date(),
+    answers: order.map((k, i) => ({
+      score: opts.scoresByKey?.[k] ?? base,
+      question: { key: k, labelEn: `Q${k.toUpperCase()}`, ord: i },
+    })),
   };
 }
 
@@ -56,10 +61,9 @@ describe("repHighlight", () => {
     expect(msg.text).toContain("RateMyRep");
   });
 
-  it("flags risk dimensions when last-7d averages drop below 3", () => {
+  it("flags risk questions when last-7d averages drop below 3", () => {
     const lowRating = rating({
-      responsiveness: 1,
-      productKnowledge: 2,
+      scoresByKey: { a: 1, b: 2 },
     });
     const msg = repHighlight(
       { name: "Joe", email: "joe@example.com" },
@@ -67,8 +71,8 @@ describe("repHighlight", () => {
       [lowRating],
     );
     expect(msg.text.toLowerCase()).toContain("risk flags");
-    // Risk-flag highlight uses the formal label
-    expect(msg.text).toMatch(/Responsiveness/);
+    // Risk-flag highlight surfaces the question label.
+    expect(msg.text).toMatch(/QA/);
   });
 
   it("escapes a malicious name in HTML output", () => {

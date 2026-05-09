@@ -43,13 +43,8 @@ interface UserRow {
     industry: { slug: string; name: string };
   } | null;
   ratingsReceived?: Array<{
-    responsiveness: number;
-    productKnowledge: number;
-    followThrough: number;
-    listeningNeedsFit: number;
-    trustIntegrity: number;
-    takeCallAgain: boolean;
     createdAt: Date;
+    answers: Array<{ score: number; question: { key: string; labelEn: string; ord: number } }>;
   }>;
 }
 

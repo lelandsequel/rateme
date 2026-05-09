@@ -2,12 +2,12 @@ import Link from "next/link";
 import { SignupForm } from "./SignupForm";
 import { prisma } from "@/lib/prisma";
 import { HAS_DB } from "@/lib/env";
-import { INDUSTRIES_V1 } from "@/lib/industries";
+import { INDUSTRIES_V2 } from "@/lib/industries";
 
 export const dynamic = "force-dynamic";
 
 async function loadIndustries() {
-  if (!HAS_DB) return INDUSTRIES_V1.map((i) => ({ slug: i.slug, name: i.name }));
+  if (!HAS_DB) return INDUSTRIES_V2.map((i) => ({ slug: i.slug, name: i.name }));
   const rows = await prisma.industry.findMany({
     orderBy: { name: "asc" },
     select: { slug: true, name: true },

@@ -11,11 +11,9 @@
 // Once a user crosses Trusted (25), they're considered verified-by-volume
 // so the avatar requirement no longer matters.
 //
-// We compute on read (no denormalized status field on RepProfile yet).
-// The 90-day grace: e.g. ratings earned in 2025 count toward status
-// through 2026-03-31; ratings from 2026 also count from Jan 1. So during
-// Jan-Mar 2026 we sum (last calendar year) + (current calendar year)
-// and use the larger. After Mar 31 we use only current calendar year.
+// Phase 9 schema rewrite: Ratings no longer carry 5 hardcoded dimension
+// columns; per-question scores now live on RatingAnswer rows. The
+// aggregator iterates whatever questions a rep's industry's set defines.
 
 export type StatusTier =
   | "Unverified"
@@ -25,25 +23,37 @@ export type StatusTier =
   | "ELITE"
   | "ELITE+";
 
-export interface RatingDimensions {
-  responsiveness: number;
-  productKnowledge: number;
-  followThrough: number;
-  listeningNeedsFit: number;
-  trustIntegrity: number;
+export interface AnswerForAgg {
+  score: number;
+  question: {
+    key: string;
+    labelEn: string;
+    ord: number;
+  };
 }
 
-export interface RatingForAgg extends RatingDimensions {
-  takeCallAgain: boolean;
+export interface RatingForAgg {
+  answers: ReadonlyArray<AnswerForAgg>;
   createdAt: Date;
+}
+
+export interface PerQuestionAvg {
+  key: string;
+  labelEn: string;
+  /** ord copied from the question — lets the UI sort the bar list. */
+  ord: number;
+  /** Rounded to 1 decimal, in 0-5 space. */
+  avg: number;
 }
 
 export interface RepAggregates {
   ratingCount: number;
-  averages: RatingDimensions | null; // null when no ratings
-  takeCallAgainPct: number | null;   // 0-100, or null
-  /** Average of all five dimensions — single overall score. */
+  /** Per-question averages over ALL ratings, sorted by question.ord asc. Null when no ratings. */
+  perQuestion: PerQuestionAvg[] | null;
+  /** Mean of (mean of all answer scores per rating) in 0-5 space. Null when no ratings. */
   overall: number | null;
+  /** Headline 0-10 score = round(overall * 2 * 100) / 100 (2 decimals). Null when no ratings. */
+  overall10: number | null;
   /** Count used for the status calculation (current year + grace). */
   ratingsThisYear: number;
   status: StatusTier;
@@ -97,6 +107,14 @@ export function ratingsCountForStatus(
   return Math.max(current, current + prior); // grace: keep prior if we still benefit
 }
 
+/** Mean of the answer scores on a single rating. 0 when there are none. */
+export function ratingMean(r: RatingForAgg): number {
+  if (r.answers.length === 0) return 0;
+  let sum = 0;
+  for (const a of r.answers) sum += a.score;
+  return sum / r.answers.length;
+}
+
 export function aggregateRatings(
   ratings: ReadonlyArray<RatingForAgg>,
   avatarUrl: string | null,
@@ -107,48 +125,65 @@ export function aggregateRatings(
   if (ratings.length === 0) {
     return {
       ratingCount: 0,
-      averages: null,
-      takeCallAgainPct: null,
+      perQuestion: null,
       overall: null,
+      overall10: null,
       ratingsThisYear: 0,
       status: statusFromYearlyCount(0, hasAvatar),
     };
   }
 
-  const sums: RatingDimensions = {
-    responsiveness: 0,
-    productKnowledge: 0,
-    followThrough: 0,
-    listeningNeedsFit: 0,
-    trustIntegrity: 0,
-  };
-  let yes = 0;
+  // Per-question rolling sums. We key by question.key but also remember
+  // labelEn + ord for the rendered output.
+  const perKey = new Map<string, { labelEn: string; ord: number; sum: number; n: number }>();
+
+  // Overall = mean of (mean of all answer scores per rating). This way a
+  // rating with 0 answers (defensive) doesn't get divided by zero, and a
+  // rating with 10 answers carries the same weight as one with 5.
+  let overallSum = 0;
+  let overallN = 0;
+
   for (const r of ratings) {
-    sums.responsiveness += r.responsiveness;
-    sums.productKnowledge += r.productKnowledge;
-    sums.followThrough += r.followThrough;
-    sums.listeningNeedsFit += r.listeningNeedsFit;
-    sums.trustIntegrity += r.trustIntegrity;
-    if (r.takeCallAgain) yes++;
+    if (r.answers.length === 0) continue;
+    let perRatingSum = 0;
+    for (const a of r.answers) {
+      perRatingSum += a.score;
+      const slot = perKey.get(a.question.key);
+      if (slot) {
+        slot.sum += a.score;
+        slot.n++;
+      } else {
+        perKey.set(a.question.key, {
+          labelEn: a.question.labelEn,
+          ord: a.question.ord,
+          sum: a.score,
+          n: 1,
+        });
+      }
+    }
+    overallSum += perRatingSum / r.answers.length;
+    overallN++;
   }
-  const n = ratings.length;
-  const averages: RatingDimensions = {
-    responsiveness:    round1(sums.responsiveness / n),
-    productKnowledge:  round1(sums.productKnowledge / n),
-    followThrough:     round1(sums.followThrough / n),
-    listeningNeedsFit: round1(sums.listeningNeedsFit / n),
-    trustIntegrity:    round1(sums.trustIntegrity / n),
-  };
-  const overall = round1(
-    (averages.responsiveness + averages.productKnowledge + averages.followThrough + averages.listeningNeedsFit + averages.trustIntegrity) / 5,
-  );
+
+  const overall = overallN === 0 ? null : round1(overallSum / overallN);
+  const overall10 = overall === null ? null : round2(overall * 2);
+
+  const perQuestion: PerQuestionAvg[] = Array.from(perKey.entries())
+    .map(([key, slot]) => ({
+      key,
+      labelEn: slot.labelEn,
+      ord: slot.ord,
+      avg: round1(slot.sum / slot.n),
+    }))
+    .sort((a, b) => a.ord - b.ord);
+
   const ratingsThisYear = ratingsCountForStatus(ratings, now);
 
   return {
-    ratingCount: n,
-    averages,
-    takeCallAgainPct: Math.round((yes / n) * 100),
+    ratingCount: ratings.length,
+    perQuestion: perQuestion.length === 0 ? null : perQuestion,
     overall,
+    overall10,
     ratingsThisYear,
     status: statusFromYearlyCount(ratingsThisYear, hasAvatar),
   };
@@ -156,7 +191,10 @@ export function aggregateRatings(
 
 /**
  * Mirror of aggregateRatings for raters: status is driven by the count of
- * ratings GIVEN by the rater, not received. Same thresholds apply.
+ * ratings GIVEN by the rater, not received. Same thresholds apply. We
+ * don't compute per-question averages here — raters AUTHOR ratings, the
+ * dimensions vary across the reps they rate, and per-question rollups
+ * for raters aren't meaningful.
  */
 export function aggregateRaterRatings(
   ratingsGiven: ReadonlyArray<{ createdAt: Date }>,
@@ -174,4 +212,8 @@ export function aggregateRaterRatings(
 
 function round1(x: number): number {
   return Math.round(x * 10) / 10;
+}
+
+function round2(x: number): number {
+  return Math.round(x * 100) / 100;
 }

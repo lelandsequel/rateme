@@ -5,11 +5,19 @@
 // SALES_MANAGER  → my team's status snapshot
 // RATER_MANAGER  → my team's connection volume snapshot
 // ADMIN          → admin landing (just stats for now)
+//
+// Phase 9 rewrite: ratings carry dynamic per-question answers; the
+// headline overall is shown in 0-10 space (overall * 2, 2 decimals) per
+// the new client-facing convention.
 
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { aggregateRatings, aggregateRaterRatings, type StatusTier } from "@/lib/aggregates";
+import {
+  aggregateRatings,
+  aggregateRaterRatings,
+  type StatusTier,
+} from "@/lib/aggregates";
 import { generateRecap } from "@/lib/ai-recap";
 import { RecapCard } from "@/components/RecapCard";
 import { recommendTraining } from "@/lib/training-recs";
@@ -22,12 +30,12 @@ import {
 import {
   totalFeedbackMoM,
   avgScoreMoM,
-  teamDimensionAverages,
+  teamPerQuestionAverages,
   resolutionRate,
   weeklyTrendSeries,
   repInteractionFrequency,
   type WeeklyTrendBucket,
-  type DimensionScores,
+  type PerQuestionTeamAvg,
   type MonthOverMonth,
   type ResolutionRate,
 } from "@/lib/manager-stats";
@@ -37,10 +45,20 @@ import { InviteRater } from "./InviteRater";
 import { RankingsBar } from "./RankingsBar";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 
 export const dynamic = "force-dynamic";
 
-const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
+// Shared select projection for any rating that feeds an aggregator.
+const RATING_AGG_SELECT = {
+  createdAt: true,
+  answers: {
+    select: {
+      score: true,
+      question: { select: { key: true, labelEn: true, ord: true } },
+    },
+  },
+} as const;
 
 const STATUS_BADGE: Record<StatusTier, string> = {
   Unverified: "bg-[#e2e8f0] text-[#475569]",
@@ -68,17 +86,7 @@ async function RepHome({ userId }: { userId: string }) {
     where: { id: userId },
     include: {
       repProfile: { include: { industry: { select: { name: true } } } },
-      ratingsReceived: {
-        select: {
-          responsiveness: true,
-          productKnowledge: true,
-          followThrough: true,
-          listeningNeedsFit: true,
-          trustIntegrity: true,
-          takeCallAgain: true,
-          createdAt: true,
-        },
-      },
+      ratingsReceived: { select: RATING_AGG_SELECT },
     },
   });
   if (!me?.repProfile) return <p>Set up your rep profile to get started.</p>;
@@ -106,32 +114,30 @@ async function RepHome({ userId }: { userId: string }) {
         <p className="text-[#475569]">{me.repProfile.title} · {me.repProfile.company} · {me.repProfile.industry.name}</p>
       </header>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <Stat
           label="Overall"
           value={
             <span>
               <span className="text-[#fbbf24] mr-1">★</span>
-              {agg.overall ?? "—"}
+              {agg.overall10 ?? "—"}
+              <span className="text-sm text-[#94a3b8] font-normal"> / 10</span>
             </span>
           }
         />
         <Stat label="Status" value={<span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[agg.status]}`}>{agg.status}</span>} />
         <Stat label="Ratings (year)" value={agg.ratingsThisYear} />
-        <Stat label="Buy from again?" value={agg.takeCallAgainPct === null ? "—" : `${agg.takeCallAgainPct}%`} />
       </div>
 
       <RankingsBar userId={userId} role="REP" />
 
-      {agg.averages && (
+      {agg.perQuestion && (
         <div className="bg-[#ffffff] rounded-xl p-6 border border-[#e5e7eb]">
-          <h2 className="font-bold mb-4">Dimension averages</h2>
+          <h2 className="font-bold mb-4">Question averages</h2>
           <div className="space-y-2">
-            <Bar label="Responsiveness" value={agg.averages.responsiveness} />
-            <Bar label="Product knowledge" value={agg.averages.productKnowledge} />
-            <Bar label="Follow-through" value={agg.averages.followThrough} />
-            <Bar label="Listening / needs fit" value={agg.averages.listeningNeedsFit} />
-            <Bar label="Trust / integrity" value={agg.averages.trustIntegrity} />
+            {agg.perQuestion.map((q) => (
+              <Bar key={q.key} label={q.labelEn} value={q.avg} />
+            ))}
           </div>
         </div>
       )}
@@ -160,17 +166,7 @@ async function RaterHome({ userId }: { userId: string }) {
       raterConnections: {
         where: { status: { in: [ConnectionStatus.PENDING, ConnectionStatus.ACCEPTED] } },
       },
-      ratingsGiven: {
-        select: {
-          responsiveness: true,
-          productKnowledge: true,
-          followThrough: true,
-          listeningNeedsFit: true,
-          trustIntegrity: true,
-          takeCallAgain: true,
-          createdAt: true,
-        },
-      },
+      ratingsGiven: { select: RATING_AGG_SELECT },
     },
   });
   if (!me?.raterProfile) return <p>Profile setup pending.</p>;
@@ -226,12 +222,7 @@ async function RaterHome({ userId }: { userId: string }) {
 interface RecentRow {
   id: string;
   createdAt: Date;
-  responsiveness: number;
-  productKnowledge: number;
-  followThrough: number;
-  listeningNeedsFit: number;
-  trustIntegrity: number;
-  takeCallAgain: boolean;
+  overall10: number | null;
   rep: { id: string; name: string; title: string; company: string };
   rater: PublicRater | null;
 }
@@ -247,17 +238,7 @@ async function SalesManagerHome({ userId }: { userId: string }) {
           member: {
             include: {
               repProfile: { include: { industry: { select: { name: true } } } },
-              ratingsReceived: {
-                select: {
-                  responsiveness: true,
-                  productKnowledge: true,
-                  followThrough: true,
-                  listeningNeedsFit: true,
-                  trustIntegrity: true,
-                  takeCallAgain: true,
-                  createdAt: true,
-                },
-              },
+              ratingsReceived: { select: RATING_AGG_SELECT },
             },
           },
         },
@@ -306,15 +287,13 @@ async function SalesManagerHome({ userId }: { userId: string }) {
 
       <TrendChart series={stats.weekly} />
 
-      {stats.dimensions && (
+      {stats.perQuestion.length > 0 && (
         <div className="bg-[#ffffff] rounded-xl p-6 border border-[#e5e7eb]">
           <h2 className="font-bold mb-4">Average score by question (last 30 days)</h2>
           <div className="space-y-2">
-            <Bar label="Responsiveness" value={stats.dimensions.responsiveness} />
-            <Bar label="Product knowledge" value={stats.dimensions.productKnowledge} />
-            <Bar label="Follow-through" value={stats.dimensions.followThrough} />
-            <Bar label="Listening / needs fit" value={stats.dimensions.listeningNeedsFit} />
-            <Bar label="Trust / integrity" value={stats.dimensions.trustIntegrity} />
+            {stats.perQuestion.map((q) => (
+              <Bar key={q.key} label={q.labelEn} value={q.avg} />
+            ))}
           </div>
         </div>
       )}
@@ -327,8 +306,7 @@ async function SalesManagerHome({ userId }: { userId: string }) {
               <th className="px-4 py-3">Industry</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3 text-right">Ratings</th>
-              <th className="px-4 py-3 text-right">Overall</th>
-              <th className="px-4 py-3 text-right">Buy again?</th>
+              <th className="px-4 py-3 text-right">Overall / 10</th>
               <th className="px-4 py-3 text-right">Active days (30d)</th>
             </tr>
           </thead>
@@ -346,13 +324,12 @@ async function SalesManagerHome({ userId }: { userId: string }) {
                   <span className={`px-2 py-0.5 rounded text-xs ${STATUS_BADGE[r.agg.status]}`}>{r.agg.status}</span>
                 </td>
                 <td className="px-4 py-3 text-right">{r.agg.ratingCount}</td>
-                <td className="px-4 py-3 text-right">{r.agg.overall ?? "—"}</td>
-                <td className="px-4 py-3 text-right">{r.agg.takeCallAgainPct === null ? "—" : `${r.agg.takeCallAgainPct}%`}</td>
+                <td className="px-4 py-3 text-right">{r.agg.overall10 ?? "—"}</td>
                 <td className="px-4 py-3 text-right">{stats.frequency[r.id] ?? 0}</td>
               </tr>
             ))}
             {teamRows.length === 0 && (
-              <tr><td colSpan={7} className="px-4 py-6 text-center text-[#94a3b8]">No team members yet.</td></tr>
+              <tr><td colSpan={6} className="px-4 py-6 text-center text-[#94a3b8]">No team members yet.</td></tr>
             )}
           </tbody>
         </table>
@@ -409,15 +386,13 @@ async function RaterManagerHome({ userId }: { userId: string }) {
 
       <TrendChart series={stats.weekly} />
 
-      {stats.dimensions && (
+      {stats.perQuestion.length > 0 && (
         <div className="bg-[#ffffff] rounded-xl p-6 border border-[#e5e7eb]">
           <h2 className="font-bold mb-4">Average score by question (last 30 days)</h2>
           <div className="space-y-2">
-            <Bar label="Responsiveness" value={stats.dimensions.responsiveness} />
-            <Bar label="Product knowledge" value={stats.dimensions.productKnowledge} />
-            <Bar label="Follow-through" value={stats.dimensions.followThrough} />
-            <Bar label="Listening / needs fit" value={stats.dimensions.listeningNeedsFit} />
-            <Bar label="Trust / integrity" value={stats.dimensions.trustIntegrity} />
+            {stats.perQuestion.map((q) => (
+              <Bar key={q.key} label={q.labelEn} value={q.avg} />
+            ))}
           </div>
         </div>
       )}
@@ -432,7 +407,7 @@ async function RaterManagerHome({ userId }: { userId: string }) {
 interface LoadedStats {
   totalFeedback: MonthOverMonth;
   avgScore: MonthOverMonth;
-  dimensions: DimensionScores | null;
+  perQuestion: PerQuestionTeamAvg[];
   resolution: ResolutionRate;
   weekly: WeeklyTrendBucket[];
   frequency: Record<string, number>;
@@ -445,7 +420,7 @@ async function loadTeamStats({ where }: { where: Prisma.RatingWhereInput | null 
     return {
       totalFeedback: { thisMonth: 0, lastMonth: 0, deltaPct: null },
       avgScore: { thisMonth: 0, lastMonth: 0, deltaPct: null },
-      dimensions: null,
+      perQuestion: [],
       resolution: { atRiskPairs: 0, resolvedPairs: 0, rate: null },
       weekly: weeklyTrendSeries([], now),
       frequency: {},
@@ -456,6 +431,11 @@ async function loadTeamStats({ where }: { where: Prisma.RatingWhereInput | null 
     where,
     orderBy: { createdAt: "desc" },
     include: {
+      answers: {
+        include: {
+          question: { select: { key: true, labelEn: true, ord: true } },
+        },
+      },
       rep: { include: { repProfile: true } },
       rater: {
         include: {
@@ -467,56 +447,51 @@ async function loadTeamStats({ where }: { where: Prisma.RatingWhereInput | null 
     },
   });
 
-  const dims = ratings.map((r) => ({
-    createdAt: r.createdAt,
-    responsiveness: r.responsiveness,
-    productKnowledge: r.productKnowledge,
-    followThrough: r.followThrough,
-    listeningNeedsFit: r.listeningNeedsFit,
-    trustIntegrity: r.trustIntegrity,
-  }));
-  const pairs = ratings.map((r, i) => ({
-    ...dims[i],
-    repUserId: r.repUserId,
-    raterUserId: r.raterUserId,
-  }));
   const repFreqRows = ratings.map((r) => ({
     repUserId: r.repUserId,
     createdAt: r.createdAt,
   }));
 
-  const recent: RecentRow[] = ratings.slice(0, 10).map((r) => ({
-    id: r.id,
+  const recent: RecentRow[] = ratings.slice(0, 10).map((r) => {
+    const overallSum = r.answers.reduce((acc, a) => acc + a.score, 0);
+    const overall = r.answers.length > 0 ? overallSum / r.answers.length : null;
+    const overall10 = overall === null ? null : Math.round(overall * 2 * 100) / 100;
+    return {
+      id: r.id,
+      createdAt: r.createdAt,
+      overall10,
+      rep: {
+        id: r.rep.id,
+        name: r.rep.name,
+        title: r.rep.repProfile?.title ?? "",
+        company: r.rep.repProfile?.company ?? "",
+      },
+      rater: r.rater.raterProfile
+        ? publicRater({
+            userId: r.rater.id,
+            user: r.rater,
+            title: r.rater.raterProfile.title,
+            company: r.rater.raterProfile.company,
+            industry: r.rater.raterProfile.industry,
+          })
+        : null,
+    };
+  });
+
+  // For pair-level + monthly we need (rep, rater) IDs alongside answers.
+  const pairs = ratings.map((r) => ({
+    answers: r.answers,
     createdAt: r.createdAt,
-    responsiveness: r.responsiveness,
-    productKnowledge: r.productKnowledge,
-    followThrough: r.followThrough,
-    listeningNeedsFit: r.listeningNeedsFit,
-    trustIntegrity: r.trustIntegrity,
-    takeCallAgain: r.takeCallAgain,
-    rep: {
-      id: r.rep.id,
-      name: r.rep.name,
-      title: r.rep.repProfile?.title ?? "",
-      company: r.rep.repProfile?.company ?? "",
-    },
-    rater: r.rater.raterProfile
-      ? publicRater({
-          userId: r.rater.id,
-          user: r.rater,
-          title: r.rater.raterProfile.title,
-          company: r.rater.raterProfile.company,
-          industry: r.rater.raterProfile.industry,
-        })
-      : null,
+    repUserId: r.repUserId,
+    raterUserId: r.raterUserId,
   }));
 
   return {
     totalFeedback: totalFeedbackMoM(ratings, now),
-    avgScore: avgScoreMoM(dims, now),
-    dimensions: teamDimensionAverages(dims, now),
+    avgScore: avgScoreMoM(ratings, now),
+    perQuestion: teamPerQuestionAverages(ratings, now),
     resolution: resolutionRate(pairs),
-    weekly: weeklyTrendSeries(dims, now),
+    weekly: weeklyTrendSeries(ratings, now),
     frequency: repInteractionFrequency(repFreqRows, now),
     recent,
   };
@@ -667,12 +642,8 @@ function RecentFeedbackList({ rows, kind }: { rows: RecentRow[]; kind: "rep" | "
           <tr className="text-left text-xs uppercase tracking-wider text-[#94a3b8]">
             <th className="px-4 py-3">{kind === "rep" ? "Rep" : "Rated"}</th>
             <th className="px-4 py-3">Rater</th>
-            <th className="px-4 py-3 text-center">R</th>
-            <th className="px-4 py-3 text-center">PK</th>
-            <th className="px-4 py-3 text-center">FT</th>
-            <th className="px-4 py-3 text-center">LN</th>
-            <th className="px-4 py-3 text-center">TI</th>
-            <th className="px-4 py-3 text-center">Buy again?</th>
+            <th className="px-4 py-3 text-right">Overall / 10</th>
+            <th className="px-4 py-3">When</th>
           </tr>
         </thead>
         <tbody>
@@ -689,17 +660,9 @@ function RecentFeedbackList({ rows, kind }: { rows: RecentRow[]; kind: "rep" | "
               <td className="px-4 py-3 text-[#475569]">
                 {r.rater ? `${r.rater.title} @ ${r.rater.company}` : "—"}
               </td>
-              <td className="px-4 py-3 text-center">{r.responsiveness}</td>
-              <td className="px-4 py-3 text-center">{r.productKnowledge}</td>
-              <td className="px-4 py-3 text-center">{r.followThrough}</td>
-              <td className="px-4 py-3 text-center">{r.listeningNeedsFit}</td>
-              <td className="px-4 py-3 text-center">{r.trustIntegrity}</td>
-              <td className="px-4 py-3 text-center">
-                {r.takeCallAgain ? (
-                  <span className="text-[#16a34a]">Yes</span>
-                ) : (
-                  <span className="text-[#f5867a]">No</span>
-                )}
+              <td className="px-4 py-3 text-right">{r.overall10 ?? "—"}</td>
+              <td className="px-4 py-3 text-[#94a3b8]">
+                {new Date(r.createdAt).toLocaleDateString()}
               </td>
             </tr>
           ))}
@@ -765,14 +728,6 @@ function TimingCard({
   );
 }
 
-const DIM_PRETTY: Record<string, string> = {
-  responsiveness: "Responsiveness",
-  productKnowledge: "Product knowledge",
-  followThrough: "Follow-through",
-  listeningNeedsFit: "Listening / needs fit",
-  trustIntegrity: "Trust & integrity",
-};
-
 const SEVERITY_BADGE: Record<string, string> = {
   low: "bg-[#fee2e2] text-[#991b1b]",
   medium: "bg-[#fef3c7] text-[#92400e]",
@@ -795,7 +750,7 @@ function TrainingSuggestions({
             className="rounded-lg border border-[#e5e7eb] bg-[#ffffff] p-4"
           >
             <div className="flex items-center justify-between mb-2">
-              <div className="font-medium">{DIM_PRETTY[rec.dimension] ?? rec.dimension}</div>
+              <div className="font-medium">{rec.label}</div>
               <span
                 className={`text-xs px-2 py-0.5 rounded ${SEVERITY_BADGE[rec.severity]}`}
               >

@@ -3,8 +3,10 @@
 // Core idea: Raters (customers/buyers) rate Reps (sales reps). Data is
 // owned by the individual, portable across employers. Managers can view
 // teams of either Reps OR Raters. Connections gate ratings — you can
-// only rate a Rep you're connected to. No free text — only structured
-// 1-5 scores + a binary "would buy from again?" flag.
+// only rate a Rep you're connected to. Each Rep belongs to an Industry,
+// each Industry maps to a QuestionSet, and a Rating's per-question 1-5
+// scores are stored in RatingAnswer rows (so question sets are dynamic
+// per industry, not the legacy hard-coded 5 dimensions).
 
 generator client {
   provider = "prisma-client-js"
@@ -90,6 +92,9 @@ model User {
   role             Role
   state            USState
   avatarUrl        String?
+  // i18n preference for client-facing UI strings ("en" | "es" | "pt").
+  // Set per-user; defaults to English. Mobile reads + writes via /api/me/locale.
+  locale           String    @default("en")
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
   lastLoginAt      DateTime?
@@ -180,14 +185,53 @@ model ManagerProfile {
 }
 
 // Industry lookup — curated list, seeded. RepProfile + RaterProfile both FK here.
+//
+// Each Industry is OPTIONALLY linked to a QuestionSet (FK is nullable so
+// we can add a new industry without immediately authoring 10 questions for
+// it). All seeded industries DO link to a question set today.
 model Industry {
-  id           String         @id @default(cuid())
-  name         String         @unique
-  slug         String         @unique
-  reps         RepProfile[]
-  raters       RaterProfile[]
+  id              String         @id @default(cuid())
+  name            String         @unique
+  slug            String         @unique
+  questionSetId   String?
+  questionSet     QuestionSet?   @relation(fields: [questionSetId], references: [id])
+  reps            RepProfile[]
+  raters          RaterProfile[]
 
   @@index([slug])
+  @@index([questionSetId])
+}
+
+// ---------------------------------------------------------------------------
+// QuestionSet + Question — dynamic per-industry rating questions.
+//
+// A QuestionSet groups N (typically 10) Question rows, each with en/es/pt
+// labels. Industries point at a QuestionSet so the rating form for a rep
+// is "what does my industry's question set ask?". Per-question scores
+// live on RatingAnswer (one row per question per rating).
+// ---------------------------------------------------------------------------
+
+model QuestionSet {
+  id         String     @id @default(cuid())
+  slug       String     @unique
+  name       String
+  questions  Question[]
+  industries Industry[]
+}
+
+model Question {
+  id            String         @id @default(cuid())
+  questionSetId String
+  questionSet   QuestionSet    @relation(fields: [questionSetId], references: [id], onDelete: Cascade)
+  ord           Int            // display order within a set (0-based, stable)
+  key           String         // stable machine key, unique within a set
+  labelEn       String
+  labelEs       String
+  labelPt       String
+  answers       RatingAnswer[]
+
+  @@unique([questionSetId, key])
+  @@index([questionSetId, ord])
 }
 
 // ---------------------------------------------------------------------------
@@ -224,9 +268,10 @@ model Connection {
 }
 
 // ---------------------------------------------------------------------------
-// Ratings — 5 structured dimensions + an optional review comment.
-// "Free text" per the original spec means user-to-user direct messaging
-// (which we don't allow) — review comments tied to a rating ARE fine.
+// Ratings — per-question 1-5 scores stored in RatingAnswer + optional
+// review comment. Question set is determined by the Rep's Industry at
+// rating time; we store actual answers, not a pointer to the set, so a
+// later set edit doesn't rewrite history.
 // ---------------------------------------------------------------------------
 
 model Rating {
@@ -240,17 +285,8 @@ model Rating {
   raterUserId         String
   rater               User       @relation("RatingFromRater", fields: [raterUserId], references: [id], onDelete: Cascade)
 
-  // The five 1-5 dimensions. Stored as Int with CHECK in app code.
-  responsiveness      Int
-  productKnowledge    Int
-  followThrough       Int
-  listeningNeedsFit   Int
-  trustIntegrity      Int
-
-  // Binary "would buy from again?" flag (display label is "Buy from again?",
-  // renamed 2026-05-08 per client feedback; field name kept stable to avoid a
-  // migration).
-  takeCallAgain       Boolean
+  // Per-question 1-5 scores (one row per question in the rep's set).
+  answers             RatingAnswer[]
 
   // Optional review comment (≤500 chars enforced in route handlers).
   // Per-rating review text — NOT a chat / DM channel.
@@ -264,6 +300,21 @@ model Rating {
 
   @@index([repUserId, createdAt])
   @@index([raterUserId, createdAt])
+}
+
+// One per (rating, question). Score is the 1-5 the rater gave to that
+// specific question. Cascade-deletes with the parent Rating; questions
+// stay even if a rating is deleted.
+model RatingAnswer {
+  id          String   @id @default(cuid())
+  ratingId    String
+  rating      Rating   @relation(fields: [ratingId], references: [id], onDelete: Cascade)
+  questionId  String
+  question    Question @relation(fields: [questionId], references: [id])
+  score       Int      // 1-5
+
+  @@unique([ratingId, questionId])
+  @@index([questionId])
 }
 
 // ---------------------------------------------------------------------------

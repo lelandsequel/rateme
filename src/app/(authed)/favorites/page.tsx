@@ -44,13 +44,13 @@ export default async function FavoritesPage() {
           },
           ratingsReceived: {
             select: {
-              responsiveness: true,
-              productKnowledge: true,
-              followThrough: true,
-              listeningNeedsFit: true,
-              trustIntegrity: true,
-              takeCallAgain: true,
               createdAt: true,
+              answers: {
+                select: {
+                  score: true,
+                  question: { select: { key: true, labelEn: true, ord: true } },
+                },
+              },
             },
           },
         },
@@ -109,7 +109,7 @@ export default async function FavoritesPage() {
                   </span>
                 </div>
                 <div className="flex items-center gap-4 mt-3 text-xs text-[#94a3b8]">
-                  <span>Overall: <span className="text-[#0f172a] font-medium">{agg.overall ?? "—"}</span></span>
+                  <span>Overall: <span className="text-[#0f172a] font-medium">{agg.overall10 ?? "—"} / 10</span></span>
                   <span>Total ratings: <span className="text-[#0f172a] font-medium">{agg.ratingCount}</span></span>
                 </div>
               </Link>

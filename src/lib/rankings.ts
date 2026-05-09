@@ -66,27 +66,23 @@ export function computeRanking(
 // Prisma-bound convenience computations
 // ---------------------------------------------------------------------------
 
-interface DimRating {
-  responsiveness: number;
-  productKnowledge: number;
-  followThrough: number;
-  listeningNeedsFit: number;
-  trustIntegrity: number;
+interface AnswersRating {
+  answers: ReadonlyArray<{ score: number }>;
 }
 
-function overallFromRatings(ratings: ReadonlyArray<DimRating>): number {
+function overallFromRatings(ratings: ReadonlyArray<AnswersRating>): number {
   if (ratings.length === 0) return 0;
   let sum = 0;
+  let n = 0;
   for (const r of ratings) {
-    sum +=
-      (r.responsiveness +
-        r.productKnowledge +
-        r.followThrough +
-        r.listeningNeedsFit +
-        r.trustIntegrity) /
-      5;
+    if (r.answers.length === 0) continue;
+    let s = 0;
+    for (const a of r.answers) s += a.score;
+    sum += s / r.answers.length;
+    n++;
   }
-  return Math.round((sum / ratings.length) * 10) / 10;
+  if (n === 0) return 0;
+  return Math.round((sum / n) * 10) / 10;
 }
 
 export async function repTeamRanking(
@@ -109,13 +105,7 @@ export async function repTeamRanking(
           role: true,
           ratingsReceived: {
             where: { createdAt: { gte: since } },
-            select: {
-              responsiveness: true,
-              productKnowledge: true,
-              followThrough: true,
-              listeningNeedsFit: true,
-              trustIntegrity: true,
-            },
+            select: { answers: { select: { score: true } } },
           },
         },
       },
@@ -158,13 +148,7 @@ export async function repIndustryRegionalRanking(
       id: true,
       ratingsReceived: {
         where: { createdAt: { gte: since } },
-        select: {
-          responsiveness: true,
-          productKnowledge: true,
-          followThrough: true,
-          listeningNeedsFit: true,
-          trustIntegrity: true,
-        },
+        select: { answers: { select: { score: true } } },
       },
     },
   });

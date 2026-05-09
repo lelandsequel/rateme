@@ -15,7 +15,7 @@ import { publicRater } from "@/lib/redact";
 import {
   totalFeedbackMoM,
   avgScoreMoM,
-  teamDimensionAverages,
+  teamPerQuestionAverages,
   resolutionRate,
   weeklyTrendSeries,
   repInteractionFrequency,
@@ -50,6 +50,13 @@ export async function GET() {
       where,
       orderBy: { createdAt: "desc" },
       include: {
+        answers: {
+          include: {
+            question: {
+              select: { key: true, ord: true, labelEn: true, labelEs: true, labelPt: true },
+            },
+          },
+        },
         rep: {
           include: {
             repProfile: {
@@ -67,21 +74,6 @@ export async function GET() {
       },
     });
 
-    const dims = ratings.map((r) => ({
-      createdAt: r.createdAt,
-      responsiveness: r.responsiveness,
-      productKnowledge: r.productKnowledge,
-      followThrough: r.followThrough,
-      listeningNeedsFit: r.listeningNeedsFit,
-      trustIntegrity: r.trustIntegrity,
-    }));
-
-    const pairs = ratings.map((r, i) => ({
-      ...dims[i],
-      repUserId: r.repUserId,
-      raterUserId: r.raterUserId,
-    }));
-
     const repFreqRows = ratings.map((r) => ({
       repUserId: r.repUserId,
       createdAt: r.createdAt,
@@ -90,12 +82,14 @@ export async function GET() {
     const recentFeedback = ratings.slice(0, 10).map((r) => ({
       id: r.id,
       createdAt: r.createdAt,
-      responsiveness: r.responsiveness,
-      productKnowledge: r.productKnowledge,
-      followThrough: r.followThrough,
-      listeningNeedsFit: r.listeningNeedsFit,
-      trustIntegrity: r.trustIntegrity,
-      takeCallAgain: r.takeCallAgain,
+      comment: r.comment,
+      answers: [...r.answers]
+        .sort((a, b) => a.question.ord - b.question.ord)
+        .map((a) => ({
+          questionKey: a.question.key,
+          labelEn: a.question.labelEn,
+          score: a.score,
+        })),
       rep: r.rep.repProfile
         ? {
             id: r.rep.id,
@@ -121,10 +115,10 @@ export async function GET() {
       teamSize: memberIds.length,
       windowDays: 90,
       totalFeedback: totalFeedbackMoM(ratings, now),
-      avgScore: avgScoreMoM(dims, now),
-      teamDimensions: teamDimensionAverages(dims, now),
-      resolutionRate: resolutionRate(pairs),
-      weeklyTrend: weeklyTrendSeries(dims, now),
+      avgScore: avgScoreMoM(ratings, now),
+      perQuestion: teamPerQuestionAverages(ratings, now),
+      resolutionRate: resolutionRate(ratings),
+      weeklyTrend: weeklyTrendSeries(ratings, now),
       repFrequency: repInteractionFrequency(repFreqRows, now),
       recentFeedback,
     };
@@ -139,7 +133,7 @@ function emptyResponse() {
     windowDays: 90,
     totalFeedback: { thisMonth: 0, lastMonth: 0, deltaPct: null },
     avgScore: { thisMonth: 0, lastMonth: 0, deltaPct: null },
-    teamDimensions: null,
+    perQuestion: [],
     resolutionRate: { atRiskPairs: 0, resolvedPairs: 0, rate: null },
     weeklyTrend: weeklyTrendSeries([], now),
     repFrequency: {},

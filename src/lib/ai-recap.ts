@@ -10,14 +10,18 @@
 // Both paths return the same Recap shape; the `source` field tells the UI
 // which one ran. Fallback exists so a missing/invalid key never breaks the
 // page render.
+//
+// Phase 9 schema rewrite: ratings carry dynamic per-question answers, not
+// 5 fixed dimensions. We aggregate over whatever questions show up in the
+// input. "Buy from again" is gone entirely.
+
+export interface AnswerForRecap {
+  score: number;
+  question: { key: string; labelEn: string; ord: number };
+}
 
 export interface RecapInputRating {
-  responsiveness: number;
-  productKnowledge: number;
-  followThrough: number;
-  listeningNeedsFit: number;
-  trustIntegrity: number;
-  takeCallAgain: boolean;
+  answers: ReadonlyArray<AnswerForRecap>;
   createdAt: Date;
 }
 
@@ -40,30 +44,11 @@ export interface Recap {
   source: "openai" | "deterministic";
 }
 
-const DIM_LABELS: Record<keyof DimSums, string> = {
-  responsiveness: "Responsiveness",
-  productKnowledge: "Product knowledge",
-  followThrough: "Follow-through",
-  listeningNeedsFit: "Listening / needs fit",
-  trustIntegrity: "Trust / integrity",
-};
-
-interface DimSums {
-  responsiveness: number;
-  productKnowledge: number;
-  followThrough: number;
-  listeningNeedsFit: number;
-  trustIntegrity: number;
+interface QuestionAvg {
+  key: string;
+  labelEn: string;
+  avg: number;
 }
-
-type DimKey = keyof DimSums;
-const DIM_KEYS: DimKey[] = [
-  "responsiveness",
-  "productKnowledge",
-  "followThrough",
-  "listeningNeedsFit",
-  "trustIntegrity",
-];
 
 export async function generateRecap(input: RecapInput): Promise<Recap> {
   if (input.ratings.length === 0) {
@@ -95,63 +80,81 @@ function emptyRecap(): Recap {
   };
 }
 
+/** Compute per-question averages across the input ratings. Sorted by ord. */
+function perQuestionAverages(ratings: ReadonlyArray<RecapInputRating>): QuestionAvg[] {
+  const perKey = new Map<string, { labelEn: string; ord: number; sum: number; n: number }>();
+  for (const r of ratings) {
+    for (const a of r.answers) {
+      const slot = perKey.get(a.question.key);
+      if (slot) {
+        slot.sum += a.score;
+        slot.n++;
+      } else {
+        perKey.set(a.question.key, {
+          labelEn: a.question.labelEn,
+          ord: a.question.ord,
+          sum: a.score,
+          n: 1,
+        });
+      }
+    }
+  }
+  return Array.from(perKey.entries())
+    .map(([key, slot]) => ({
+      key,
+      labelEn: slot.labelEn,
+      avg: round1(slot.sum / slot.n),
+      ord: slot.ord,
+    }))
+    .sort((a, b) => a.ord - b.ord)
+    .map(({ key, labelEn, avg }) => ({ key, labelEn, avg }));
+}
+
+function ratingMean(r: RecapInputRating): number {
+  if (r.answers.length === 0) return 0;
+  let sum = 0;
+  for (const a of r.answers) sum += a.score;
+  return sum / r.answers.length;
+}
+
 export function deterministicRecap(input: RecapInput): Recap {
   const { ratings, perspective } = input;
   const n = ratings.length;
   if (n === 0) return emptyRecap();
 
-  const sums: DimSums = {
-    responsiveness: 0,
-    productKnowledge: 0,
-    followThrough: 0,
-    listeningNeedsFit: 0,
-    trustIntegrity: 0,
-  };
-  let yes = 0;
-  let lowDimCount = 0;
+  // Per-question averages + overall mean of per-rating means.
+  const perQ = perQuestionAverages(ratings);
+  let overallSum = 0;
+  let overallN = 0;
+  let lowAnswerRatingCount = 0;
   for (const r of ratings) {
-    sums.responsiveness += r.responsiveness;
-    sums.productKnowledge += r.productKnowledge;
-    sums.followThrough += r.followThrough;
-    sums.listeningNeedsFit += r.listeningNeedsFit;
-    sums.trustIntegrity += r.trustIntegrity;
-    if (r.takeCallAgain) yes++;
-    if (
-      r.responsiveness <= 2 ||
-      r.productKnowledge <= 2 ||
-      r.followThrough <= 2 ||
-      r.listeningNeedsFit <= 2 ||
-      r.trustIntegrity <= 2
-    ) {
-      lowDimCount++;
+    if (r.answers.length === 0) continue;
+    overallSum += ratingMean(r);
+    overallN++;
+    let hasLow = false;
+    for (const a of r.answers) {
+      if (a.score <= 2) {
+        hasLow = true;
+        break;
+      }
     }
+    if (hasLow) lowAnswerRatingCount++;
   }
-  const noCount = n - yes;
-
-  const averages: Record<DimKey, number> = {
-    responsiveness: round1(sums.responsiveness / n),
-    productKnowledge: round1(sums.productKnowledge / n),
-    followThrough: round1(sums.followThrough / n),
-    listeningNeedsFit: round1(sums.listeningNeedsFit / n),
-    trustIntegrity: round1(sums.trustIntegrity / n),
-  };
-  const overall = round1(
-    DIM_KEYS.reduce((acc, k) => acc + averages[k], 0) / DIM_KEYS.length,
-  );
+  const overall = overallN === 0 ? 0 : round1(overallSum / overallN);
 
   // Sort dimensions: highest average wins for strengths, lowest for weaknesses.
-  const sortedDesc = [...DIM_KEYS].sort((a, b) => averages[b] - averages[a]);
-  const sortedAsc = [...DIM_KEYS].sort((a, b) => averages[a] - averages[b]);
+  const sortedDesc = [...perQ].sort((a, b) => b.avg - a.avg);
+  const sortedAsc = [...perQ].sort((a, b) => a.avg - b.avg);
 
   const topStrengths = sortedDesc
-    .filter((k) => averages[k] >= 4)
+    .filter((q) => q.avg >= 4)
     .slice(0, 3)
-    .map((k) => `${DIM_LABELS[k]} — averaging ${averages[k].toFixed(1)}`);
+    .map((q) => `${q.labelEn} — averaging ${q.avg.toFixed(1)}`);
 
   const topWeaknesses = sortedAsc
-    .filter((k) => averages[k] < 4)
+    .filter((q) => q.avg < 4)
     .slice(0, 3)
-    .map((k) => `${DIM_LABELS[k]} — averaging ${averages[k].toFixed(1)}`);
+    .map((q) => `${q.labelEn} — averaging ${q.avg.toFixed(1)}`);
 
   const suggestedImprovements = topWeaknesses.map((w) => {
     const colon = w.indexOf(" — ");
@@ -165,8 +168,7 @@ export function deterministicRecap(input: RecapInput): Recap {
   const sentiment =
     overall >= 4.5 ? "Excellent" : overall >= 4 ? "Solid" : overall >= 3 ? "Mixed" : "Concerning";
   const performanceSummary =
-    `${sentiment} month — ${n} rating${n === 1 ? "" : "s"} ${verb} averaging ${overall.toFixed(1)} across all dimensions, ` +
-    `with a ${Math.round((yes / n) * 100)}% "buy from again" rate.`;
+    `${sentiment} month — ${n} rating${n === 1 ? "" : "s"} ${verb} averaging ${overall.toFixed(1)} across all questions.`;
 
   const frequency = `${n} interaction${n === 1 ? "" : "s"} in 30 days (~${perWeek.toFixed(1)}/week).`;
 
@@ -183,12 +185,10 @@ export function deterministicRecap(input: RecapInput): Recap {
     "Response timing not tracked yet — based on rating cadence, not message latency.";
 
   const riskFlags: string[] = [];
-  if (lowDimCount > 0) {
-    riskFlags.push(`${lowDimCount}/${n} rating${lowDimCount === 1 ? "" : "s"} had at least one dimension scored 2 or below`);
-  }
-  if (noCount > 0) {
-    const pct = Math.round((noCount / n) * 100);
-    riskFlags.push(`${noCount}/${n} rater${noCount === 1 ? "" : "s"} (${pct}%) said they would not buy from this rep again`);
+  if (lowAnswerRatingCount > 0) {
+    riskFlags.push(
+      `${lowAnswerRatingCount}/${n} rating${lowAnswerRatingCount === 1 ? "" : "s"} had at least one question scored 2 or below`,
+    );
   }
   if (maxGapDays >= 14 && n >= 2) {
     riskFlags.push(`Engagement gap of ${maxGapDays} days suggests dropped activity`);
@@ -246,13 +246,12 @@ async function callOpenAI(input: RecapInput): Promise<Recap | null> {
     ratingCount: input.ratings.length,
     aggregates: aggHint,
     ratings: input.ratings.map((r) => ({
-      responsiveness: r.responsiveness,
-      productKnowledge: r.productKnowledge,
-      followThrough: r.followThrough,
-      listeningNeedsFit: r.listeningNeedsFit,
-      trustIntegrity: r.trustIntegrity,
-      takeCallAgain: r.takeCallAgain,
       createdAt: new Date(r.createdAt).toISOString(),
+      answers: r.answers.map((a) => ({
+        key: a.question.key,
+        label: a.question.labelEn,
+        score: a.score,
+      })),
     })),
   };
 
@@ -305,32 +304,8 @@ async function callOpenAI(input: RecapInput): Promise<Recap | null> {
 function aggregateHint(input: RecapInput) {
   const n = input.ratings.length;
   if (n === 0) return null;
-  const sums: DimSums = {
-    responsiveness: 0,
-    productKnowledge: 0,
-    followThrough: 0,
-    listeningNeedsFit: 0,
-    trustIntegrity: 0,
-  };
-  let yes = 0;
-  for (const r of input.ratings) {
-    sums.responsiveness += r.responsiveness;
-    sums.productKnowledge += r.productKnowledge;
-    sums.followThrough += r.followThrough;
-    sums.listeningNeedsFit += r.listeningNeedsFit;
-    sums.trustIntegrity += r.trustIntegrity;
-    if (r.takeCallAgain) yes++;
-  }
-  return {
-    averages: {
-      responsiveness: round1(sums.responsiveness / n),
-      productKnowledge: round1(sums.productKnowledge / n),
-      followThrough: round1(sums.followThrough / n),
-      listeningNeedsFit: round1(sums.listeningNeedsFit / n),
-      trustIntegrity: round1(sums.trustIntegrity / n),
-    },
-    takeCallAgainPct: Math.round((yes / n) * 100),
-  };
+  const perQ = perQuestionAverages(input.ratings);
+  return { perQuestion: perQ };
 }
 
 function validateRecapShape(raw: unknown): Recap | null {

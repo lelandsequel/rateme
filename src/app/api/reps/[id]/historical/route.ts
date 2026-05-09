@@ -49,12 +49,8 @@ export async function GET(
     const ratings = await prisma.rating.findMany({
       where: { repUserId: id, createdAt: { gte: since } },
       select: {
-        responsiveness: true,
-        productKnowledge: true,
-        followThrough: true,
-        listeningNeedsFit: true,
-        trustIntegrity: true,
         createdAt: true,
+        answers: { select: { score: true } },
       },
     });
 

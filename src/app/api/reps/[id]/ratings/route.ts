@@ -1,7 +1,8 @@
 // GET /api/reps/:id/ratings — paginated list of ratings on a rep.
 //
-// Returns the rater's name + title + company + industry + state and the
-// optional comment. Email remains hidden. Order: most recent first.
+// Each rating includes its per-question answers (with tri-lingual labels)
+// and the optional comment. Rater is REDACTED to publicRater shape +
+// name visible (per 2026-04-29 privacy spec); email stays hidden.
 
 import { handle, parseIntParam } from "@/lib/api";
 import { requireSession } from "@/lib/auth";
@@ -27,6 +28,19 @@ export async function GET(
         take: limit,
         skip: offset,
         include: {
+          answers: {
+            include: {
+              question: {
+                select: {
+                  key: true,
+                  ord: true,
+                  labelEn: true,
+                  labelEs: true,
+                  labelPt: true,
+                },
+              },
+            },
+          },
           rater: {
             include: {
               raterProfile: {
@@ -42,14 +56,17 @@ export async function GET(
     return {
       ratings: rows.map((r) => ({
         id: r.id,
-        responsiveness: r.responsiveness,
-        productKnowledge: r.productKnowledge,
-        followThrough: r.followThrough,
-        listeningNeedsFit: r.listeningNeedsFit,
-        trustIntegrity: r.trustIntegrity,
-        takeCallAgain: r.takeCallAgain,
         comment: r.comment,
         createdAt: r.createdAt,
+        answers: [...r.answers]
+          .sort((a, b) => a.question.ord - b.question.ord)
+          .map((a) => ({
+            questionKey: a.question.key,
+            labelEn: a.question.labelEn,
+            labelEs: a.question.labelEs,
+            labelPt: a.question.labelPt,
+            score: a.score,
+          })),
         // Name now visible; email still hidden.
         rater: r.rater.raterProfile
           ? publicRater({

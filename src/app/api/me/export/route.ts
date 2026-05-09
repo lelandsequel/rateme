@@ -74,6 +74,13 @@ export async function GET() {
     where: { raterUserId: userId },
     orderBy: { createdAt: "desc" },
     include: {
+      answers: {
+        include: {
+          question: {
+            select: { key: true, ord: true, labelEn: true, labelEs: true, labelPt: true },
+          },
+        },
+      },
       rep: {
         include: {
           repProfile: {
@@ -89,6 +96,13 @@ export async function GET() {
     where: { repUserId: userId },
     orderBy: { createdAt: "desc" },
     include: {
+      answers: {
+        include: {
+          question: {
+            select: { key: true, ord: true, labelEn: true, labelEs: true, labelPt: true },
+          },
+        },
+      },
       rater: {
         include: {
           raterProfile: {
@@ -228,12 +242,16 @@ export async function GET() {
     ratingsGiven: ratingsGiven.map((r) => ({
       id: r.id,
       connectionId: r.connectionId,
-      responsiveness: r.responsiveness,
-      productKnowledge: r.productKnowledge,
-      followThrough: r.followThrough,
-      listeningNeedsFit: r.listeningNeedsFit,
-      trustIntegrity: r.trustIntegrity,
-      takeCallAgain: r.takeCallAgain,
+      comment: r.comment,
+      answers: [...r.answers]
+        .sort((a, b) => a.question.ord - b.question.ord)
+        .map((a) => ({
+          questionKey: a.question.key,
+          labelEn: a.question.labelEn,
+          labelEs: a.question.labelEs,
+          labelPt: a.question.labelPt,
+          score: a.score,
+        })),
       createdAt: r.createdAt,
       // Caller authored these — full rep info.
       rep: r.rep.repProfile
@@ -250,12 +268,16 @@ export async function GET() {
     ratingsReceived: ratingsReceived.map((r) => ({
       id: r.id,
       connectionId: r.connectionId,
-      responsiveness: r.responsiveness,
-      productKnowledge: r.productKnowledge,
-      followThrough: r.followThrough,
-      listeningNeedsFit: r.listeningNeedsFit,
-      trustIntegrity: r.trustIntegrity,
-      takeCallAgain: r.takeCallAgain,
+      comment: r.comment,
+      answers: [...r.answers]
+        .sort((a, b) => a.question.ord - b.question.ord)
+        .map((a) => ({
+          questionKey: a.question.key,
+          labelEn: a.question.labelEn,
+          labelEs: a.question.labelEs,
+          labelPt: a.question.labelPt,
+          score: a.score,
+        })),
       createdAt: r.createdAt,
       // Rater identity REDACTED — privacy hygiene even for the rep being rated.
       rater: r.rater.raterProfile

@@ -40,11 +40,8 @@ vi.mock("@/lib/auth", () => ({
 
 type FakeUser = { id: string; role: string };
 type FakeRating = {
-  responsiveness: number;
-  productKnowledge: number;
-  followThrough: number;
-  listeningNeedsFit: number;
-  trustIntegrity: number;
+  /** Per-rating mean score (every answer set to this). */
+  score: number;
   createdAt: Date;
   repUserId: string;
 };
@@ -69,11 +66,17 @@ vi.mock("@/lib/prisma", () => ({
         async (args: {
           where: { repUserId: string; createdAt: { gte: Date } };
         }) => {
-          return dbState.ratings.filter(
-            (r) =>
-              r.repUserId === args.where.repUserId &&
-              r.createdAt.getTime() >= args.where.createdAt.gte.getTime(),
-          );
+          return dbState.ratings
+            .filter(
+              (r) =>
+                r.repUserId === args.where.repUserId &&
+                r.createdAt.getTime() >= args.where.createdAt.gte.getTime(),
+            )
+            // Mock the `select: { answers: { select: { score } } }` shape.
+            .map((r) => ({
+              createdAt: r.createdAt,
+              answers: Array.from({ length: 5 }, () => ({ score: r.score })),
+            }));
         },
       ),
     },
@@ -96,15 +99,7 @@ function rating(repUserId: string, monthsAgo: number): FakeRating {
   const d = new Date();
   d.setUTCMonth(d.getUTCMonth() - monthsAgo);
   d.setUTCDate(15);
-  return {
-    responsiveness: 4,
-    productKnowledge: 4,
-    followThrough: 4,
-    listeningNeedsFit: 4,
-    trustIntegrity: 4,
-    createdAt: d,
-    repUserId,
-  };
+  return { score: 4, createdAt: d, repUserId };
 }
 
 beforeEach(() => {

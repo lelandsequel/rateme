@@ -12,14 +12,14 @@ import { Role } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { HAS_DB } from "@/lib/env";
-import { INDUSTRIES_V1 } from "@/lib/industries";
+import { INDUSTRIES_V2 } from "@/lib/industries";
 import { AvatarUpload } from "./AvatarUpload";
 import { ProfileEditForm } from "./ProfileEditForm";
 
 export const dynamic = "force-dynamic";
 
 async function loadIndustries() {
-  if (!HAS_DB) return INDUSTRIES_V1.map((i) => ({ slug: i.slug, name: i.name }));
+  if (!HAS_DB) return INDUSTRIES_V2.map((i) => ({ slug: i.slug, name: i.name }));
   return prisma.industry.findMany({
     orderBy: { name: "asc" },
     select: { slug: true, name: true },

@@ -76,13 +76,13 @@ export default async function RepsPage({
         },
         ratingsReceived: {
           select: {
-            responsiveness: true,
-            productKnowledge: true,
-            followThrough: true,
-            listeningNeedsFit: true,
-            trustIntegrity: true,
-            takeCallAgain: true,
             createdAt: true,
+            answers: {
+              select: {
+                score: true,
+                question: { select: { key: true, labelEn: true, ord: true } },
+              },
+            },
           },
         },
       },
@@ -140,9 +140,9 @@ export default async function RepsPage({
                   </div>
                   <div className="text-sm mt-2 text-[#0f172a]">
                     <span className="text-[#fbbf24] mr-1">★</span>
-                    <span className="font-semibold">{agg.overall ?? "—"}</span>
+                    <span className="font-semibold">{agg.overall10 ?? "—"}</span>
                     <span className="text-[#94a3b8] ml-1">
-                      · {agg.ratingCount} {agg.ratingCount === 1 ? "rating" : "ratings"}
+                      / 10 · {agg.ratingCount} {agg.ratingCount === 1 ? "rating" : "ratings"}
                     </span>
                   </div>
                 </div>

@@ -44,13 +44,13 @@ export async function GET() {
           ? { repUserId: user.id, createdAt: { gte: since } }
           : { raterUserId: user.id, createdAt: { gte: since } },
       select: {
-        responsiveness: true,
-        productKnowledge: true,
-        followThrough: true,
-        listeningNeedsFit: true,
-        trustIntegrity: true,
-        takeCallAgain: true,
         createdAt: true,
+        answers: {
+          select: {
+            score: true,
+            question: { select: { key: true, labelEn: true, ord: true } },
+          },
+        },
       },
     });
 

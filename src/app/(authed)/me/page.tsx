@@ -55,13 +55,13 @@ export default async function MePage() {
     const ratings = await prisma.rating.findMany({
       where: { repUserId: user.id },
       select: {
-        responsiveness: true,
-        productKnowledge: true,
-        followThrough: true,
-        listeningNeedsFit: true,
-        trustIntegrity: true,
-        takeCallAgain: true,
         createdAt: true,
+        answers: {
+          select: {
+            score: true,
+            question: { select: { key: true, labelEn: true, ord: true } },
+          },
+        },
       },
     });
     status = aggregateRatings(ratings, user.avatarUrl).status;

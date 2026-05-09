@@ -42,12 +42,7 @@ type RatingRow = {
   id: string;
   repUserId: string;
   raterUserId: string;
-  responsiveness: number;
-  productKnowledge: number;
-  followThrough: number;
-  listeningNeedsFit: number;
-  trustIntegrity: number;
-  takeCallAgain: boolean;
+  score: number; // every answer set to this score
   createdAt: Date;
 };
 
@@ -117,13 +112,22 @@ vi.mock("@/lib/prisma", () => ({
           };
           select?: unknown;
         }) => {
-          return state.ratings.filter((r) => {
-            if (args.where.repUserId && r.repUserId !== args.where.repUserId) return false;
-            if (args.where.raterUserId && r.raterUserId !== args.where.raterUserId) return false;
-            if (args.where.createdAt?.gte && r.createdAt < args.where.createdAt.gte) return false;
-            if (args.where.createdAt?.lt && r.createdAt >= args.where.createdAt.lt) return false;
-            return true;
-          });
+          return state.ratings
+            .filter((r) => {
+              if (args.where.repUserId && r.repUserId !== args.where.repUserId) return false;
+              if (args.where.raterUserId && r.raterUserId !== args.where.raterUserId) return false;
+              if (args.where.createdAt?.gte && r.createdAt < args.where.createdAt.gte) return false;
+              if (args.where.createdAt?.lt && r.createdAt >= args.where.createdAt.lt) return false;
+              return true;
+            })
+            // Project to the ratingForAggSelect shape: answers w/ question stub.
+            .map((r) => ({
+              createdAt: r.createdAt,
+              answers: Array.from({ length: 5 }, (_, i) => ({
+                score: r.score,
+                question: { key: `q-${i}`, labelEn: `Q${i}`, ord: i },
+              })),
+            }));
         },
       ),
     },
@@ -272,12 +276,7 @@ describe("POST /api/cron/weekly-highlights", () => {
       id: "r1",
       repUserId: "u1",
       raterUserId: "u2",
-      responsiveness: 5,
-      productKnowledge: 5,
-      followThrough: 5,
-      listeningNeedsFit: 5,
-      trustIntegrity: 5,
-      takeCallAgain: true,
+      score: 5,
       createdAt: new Date(),
     });
 

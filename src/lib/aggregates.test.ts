@@ -7,16 +7,23 @@ import {
   type RatingForAgg,
 } from "./aggregates";
 
-function rating(overrides: Partial<RatingForAgg> = {}): RatingForAgg {
+// Build a 5-question rating with each question scored to a single number.
+// Defaults to all 5s. Pass `scoresByKey` for finer control.
+function rating(
+  opts: {
+    score?: number;
+    scoresByKey?: Partial<Record<string, number>>;
+    createdAt?: Date;
+  } = {},
+): RatingForAgg {
+  const base = opts.score ?? 5;
+  const order = ["a", "b", "c", "d", "e"];
   return {
-    responsiveness: 5,
-    productKnowledge: 5,
-    followThrough: 5,
-    listeningNeedsFit: 5,
-    trustIntegrity: 5,
-    takeCallAgain: true,
-    createdAt: new Date("2026-05-01T00:00:00Z"),
-    ...overrides,
+    createdAt: opts.createdAt ?? new Date("2026-05-01T00:00:00Z"),
+    answers: order.map((k, i) => ({
+      score: opts.scoresByKey?.[k] ?? base,
+      question: { key: k, labelEn: `Q${k.toUpperCase()}`, ord: i },
+    })),
   };
 }
 
@@ -89,9 +96,9 @@ describe("aggregateRatings", () => {
   it("returns Unverified for an empty list with no avatar", () => {
     const a = aggregateRatings([], null);
     expect(a.ratingCount).toBe(0);
-    expect(a.averages).toBeNull();
-    expect(a.takeCallAgainPct).toBeNull();
+    expect(a.perQuestion).toBeNull();
     expect(a.overall).toBeNull();
+    expect(a.overall10).toBeNull();
     expect(a.status).toBe("Unverified");
   });
 
@@ -108,34 +115,31 @@ describe("aggregateRatings", () => {
     expect(a.status).toBe("Trusted");
   });
 
-  it("computes correct averages and takeCallAgain%", () => {
+  it("computes per-question averages and orders by ord asc", () => {
     const a = aggregateRatings(
       [
-        rating({ responsiveness: 5, takeCallAgain: true }),
-        rating({ responsiveness: 3, takeCallAgain: false }),
-        rating({ responsiveness: 4, takeCallAgain: true }),
+        rating({ scoresByKey: { a: 5, b: 3, c: 4, d: 5, e: 5 } }),
+        rating({ scoresByKey: { a: 3, b: 3, c: 4, d: 5, e: 5 } }),
+        rating({ scoresByKey: { a: 4, b: 3, c: 4, d: 5, e: 5 } }),
       ],
       "avatar.png",
     );
     expect(a.ratingCount).toBe(3);
-    expect(a.averages?.responsiveness).toBe(4); // (5+3+4)/3
-    expect(a.takeCallAgainPct).toBe(67); // 2/3
+    expect(a.perQuestion).not.toBeNull();
+    const byKey = Object.fromEntries(a.perQuestion!.map((q) => [q.key, q.avg]));
+    expect(byKey.a).toBe(4); // (5+3+4)/3
+    expect(byKey.b).toBe(3);
+    // Order = ord asc.
+    expect(a.perQuestion!.map((q) => q.key)).toEqual(["a", "b", "c", "d", "e"]);
   });
 
-  it("computes overall as the mean of dimension averages", () => {
+  it("computes overall + overall10 as the mean of per-rating means", () => {
     const a = aggregateRatings(
-      [
-        rating({
-          responsiveness: 4,
-          productKnowledge: 4,
-          followThrough: 4,
-          listeningNeedsFit: 4,
-          trustIntegrity: 4,
-        }),
-      ],
+      [rating({ score: 4 })], // every q = 4 → mean 4
       "avatar.png",
     );
     expect(a.overall).toBe(4);
+    expect(a.overall10).toBe(8); // 4 * 2 = 8.00
   });
 
   it("rolls up to the right status for the rating volume", () => {

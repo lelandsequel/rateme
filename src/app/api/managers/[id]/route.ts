@@ -55,30 +55,23 @@ export async function GET(
       if (user.managerProfile!.managesType === "REP_MANAGER") {
         const ratings = await prisma.rating.findMany({
           where: { repUserId: { in: memberIds }, createdAt: { gte: since } },
-          select: {
-            responsiveness: true,
-            productKnowledge: true,
-            followThrough: true,
-            listeningNeedsFit: true,
-            trustIntegrity: true,
-          },
+          select: { answers: { select: { score: true } } },
         });
         if (ratings.length === 0) {
           teamStats = { avgOverall: null, ratingsLast90d: 0 };
         } else {
-          const total = ratings.reduce(
-            (acc, r) =>
-              acc +
-              r.responsiveness +
-              r.productKnowledge +
-              r.followThrough +
-              r.listeningNeedsFit +
-              r.trustIntegrity,
-            0,
-          );
-          const avg = total / (ratings.length * 5);
+          // Mean of (mean of all answer scores per rating).
+          let sum = 0;
+          let n = 0;
+          for (const r of ratings) {
+            if (r.answers.length === 0) continue;
+            let s = 0;
+            for (const a of r.answers) s += a.score;
+            sum += s / r.answers.length;
+            n++;
+          }
           teamStats = {
-            avgOverall: Math.round(avg * 10) / 10,
+            avgOverall: n === 0 ? null : Math.round((sum / n) * 10) / 10,
             ratingsLast90d: ratings.length,
           };
         }

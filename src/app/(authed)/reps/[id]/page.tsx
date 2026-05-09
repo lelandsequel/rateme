@@ -37,6 +37,9 @@ export default async function RepDetailPage({
       ratingsReceived: {
         orderBy: { createdAt: "desc" },
         include: {
+          answers: {
+            include: { question: { select: { key: true, labelEn: true, ord: true } } },
+          },
           rater: {
             include: {
               raterProfile: { include: { industry: { select: { slug: true, name: true } } } },
@@ -182,30 +185,28 @@ export default async function RepDetailPage({
         </div>
       </header>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <Stat
           label="Overall"
           value={
             <span>
               <span className="text-[#fbbf24] mr-1">★</span>
-              {agg.overall ?? "—"}
+              {agg.overall10 ?? "—"}
+              <span className="text-sm text-[#94a3b8] font-normal"> / 10</span>
             </span>
           }
         />
         <Stat label="Total ratings" value={agg.ratingCount} />
         <Stat label="Ratings (year)" value={agg.ratingsThisYear} />
-        <Stat label="Buy from again?" value={agg.takeCallAgainPct === null ? "—" : `${agg.takeCallAgainPct}%`} />
       </div>
 
-      {agg.averages && (
+      {agg.perQuestion && (
         <div className="bg-[#ffffff] rounded-xl p-6 border border-[#e5e7eb]">
-          <h2 className="font-bold mb-4">Dimensions</h2>
+          <h2 className="font-bold mb-4">Question averages</h2>
           <div className="space-y-2">
-            <Bar label="Responsiveness" value={agg.averages.responsiveness} />
-            <Bar label="Product knowledge" value={agg.averages.productKnowledge} />
-            <Bar label="Follow-through" value={agg.averages.followThrough} />
-            <Bar label="Listening / needs fit" value={agg.averages.listeningNeedsFit} />
-            <Bar label="Trust / integrity" value={agg.averages.trustIntegrity} />
+            {agg.perQuestion.map((q) => (
+              <Bar key={q.key} label={q.labelEn} value={q.avg} />
+            ))}
           </div>
         </div>
       )}
@@ -248,13 +249,14 @@ export default async function RepDetailPage({
         ) : (
           <ul className="space-y-2">
             {rep.ratingsReceived.slice(0, 10).map((r) => {
+              const sortedAnswers = [...r.answers].sort(
+                (a, b) => a.question.ord - b.question.ord,
+              );
               const overall =
-                (r.responsiveness +
-                  r.productKnowledge +
-                  r.followThrough +
-                  r.listeningNeedsFit +
-                  r.trustIntegrity) /
-                5;
+                sortedAnswers.length > 0
+                  ? sortedAnswers.reduce((acc, a) => acc + a.score, 0) / sortedAnswers.length
+                  : 0;
+              const overall10 = Math.round(overall * 2 * 100) / 100;
               return (
                 <li
                   key={r.id}
@@ -275,34 +277,25 @@ export default async function RepDetailPage({
                         {r.rater.raterProfile?.industry.name ?? "?"}
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 text-xs whitespace-nowrap">
-                      <span className="text-sm font-semibold text-[#0f172a]">
-                        <span className="text-[#fbbf24] mr-0.5">★</span>
-                        {overall.toFixed(1)}
-                      </span>
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
-                          r.takeCallAgain
-                            ? "bg-[#dcfce7] text-[#166534]"
-                            : "bg-[#fee2e2] text-[#991b1b]"
-                        }`}
-                      >
-                        {r.takeCallAgain ? "would buy again" : "would not"}
-                      </span>
+                    <div className="text-sm font-semibold text-[#0f172a] whitespace-nowrap">
+                      <span className="text-[#fbbf24] mr-0.5">★</span>
+                      {overall10.toFixed(2)} / 10
                     </div>
                   </div>
                   {r.comment && (
                     <p className="text-sm text-[#475569] mt-2 italic">
-                      “{r.comment}”
+                      &ldquo;{r.comment}&rdquo;
                     </p>
                   )}
-                  <div className="flex items-center gap-3 text-[11px] text-[#94a3b8] mt-2">
-                    <span title="Responsiveness">R {r.responsiveness}</span>
-                    <span title="Product knowledge">PK {r.productKnowledge}</span>
-                    <span title="Follow-through">FT {r.followThrough}</span>
-                    <span title="Listening / needs">LN {r.listeningNeedsFit}</span>
-                    <span title="Trust / integrity">TR {r.trustIntegrity}</span>
-                  </div>
+                  {sortedAnswers.length > 0 && (
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[#94a3b8] mt-2">
+                      {sortedAnswers.map((a) => (
+                        <span key={a.questionId} title={a.question.labelEn}>
+                          {a.question.labelEn}: {a.score}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </li>
               );
             })}

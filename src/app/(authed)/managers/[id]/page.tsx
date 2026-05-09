@@ -72,27 +72,20 @@ export default async function ManagerProfilePage({
     if (isSalesManager) {
       const ratings = await prisma.rating.findMany({
         where: { repUserId: { in: memberIds }, createdAt: { gte: since } },
-        select: {
-          responsiveness: true,
-          productKnowledge: true,
-          followThrough: true,
-          listeningNeedsFit: true,
-          trustIntegrity: true,
-        },
+        select: { answers: { select: { score: true } } },
       });
       ratingsLast90d = ratings.length;
       if (ratings.length > 0) {
-        const total = ratings.reduce(
-          (acc, r) =>
-            acc +
-            r.responsiveness +
-            r.productKnowledge +
-            r.followThrough +
-            r.listeningNeedsFit +
-            r.trustIntegrity,
-          0,
-        );
-        avgOverall = Math.round((total / (ratings.length * 5)) * 10) / 10;
+        let sum = 0;
+        let n = 0;
+        for (const r of ratings) {
+          if (r.answers.length === 0) continue;
+          let s = 0;
+          for (const a of r.answers) s += a.score;
+          sum += s / r.answers.length;
+          n++;
+        }
+        avgOverall = n === 0 ? null : Math.round((sum / n) * 10) / 10;
       }
     } else {
       ratingsLast90d = await prisma.rating.count({

@@ -45,11 +45,8 @@ interface MembershipRow {
 interface RatingRow {
   repUserId: string;
   raterUserId: string;
-  responsiveness: number;
-  productKnowledge: number;
-  followThrough: number;
-  listeningNeedsFit: number;
-  trustIntegrity: number;
+  /** All answers default to this score in the test fixtures. */
+  score: number;
   createdAt: Date;
 }
 
@@ -96,11 +93,17 @@ vi.mock("@/lib/prisma", () => ({
           };
         }) => {
           const w = args.where;
-          return state.ratings.filter((r) => {
-            if (w.repUserId?.in && !w.repUserId.in.includes(r.repUserId)) return false;
-            if (w.createdAt?.gte && r.createdAt < w.createdAt.gte) return false;
-            return true;
-          });
+          return state.ratings
+            .filter((r) => {
+              if (w.repUserId?.in && !w.repUserId.in.includes(r.repUserId)) return false;
+              if (w.createdAt?.gte && r.createdAt < w.createdAt.gte) return false;
+              return true;
+            })
+            // Mock the `select: { answers: { select: { score } } }` projection
+            // by emitting 5 answer rows per fixture rating, all at the same score.
+            .map((r) => ({
+              answers: Array.from({ length: 5 }, () => ({ score: r.score })),
+            }));
         },
       ),
       count: vi.fn(
@@ -225,32 +228,20 @@ describe("GET /api/managers/:id", () => {
       {
         repUserId: "rep-1",
         raterUserId: "rater-x",
-        responsiveness: 5,
-        productKnowledge: 5,
-        followThrough: 5,
-        listeningNeedsFit: 5,
-        trustIntegrity: 5,
+        score: 5,
         createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
       },
       {
         repUserId: "rep-2",
         raterUserId: "rater-y",
-        responsiveness: 3,
-        productKnowledge: 3,
-        followThrough: 3,
-        listeningNeedsFit: 3,
-        trustIntegrity: 3,
+        score: 3,
         createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
       },
       // Outside 90d — excluded
       {
         repUserId: "rep-1",
         raterUserId: "rater-z",
-        responsiveness: 1,
-        productKnowledge: 1,
-        followThrough: 1,
-        listeningNeedsFit: 1,
-        trustIntegrity: 1,
+        score: 1,
         createdAt: new Date(Date.now() - 200 * 24 * 60 * 60 * 1000),
       },
     ];
@@ -301,43 +292,27 @@ describe("GET /api/managers/:id", () => {
       {
         repUserId: "any-rep",
         raterUserId: "rater-1",
-        responsiveness: 4,
-        productKnowledge: 4,
-        followThrough: 4,
-        listeningNeedsFit: 4,
-        trustIntegrity: 4,
+        score: 4,
         createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
       },
       {
         repUserId: "any-rep",
         raterUserId: "rater-2",
-        responsiveness: 4,
-        productKnowledge: 4,
-        followThrough: 4,
-        listeningNeedsFit: 4,
-        trustIntegrity: 4,
+        score: 4,
         createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
       },
       // Old — excluded
       {
         repUserId: "any-rep",
         raterUserId: "rater-1",
-        responsiveness: 4,
-        productKnowledge: 4,
-        followThrough: 4,
-        listeningNeedsFit: 4,
-        trustIntegrity: 4,
+        score: 4,
         createdAt: new Date(Date.now() - 200 * 24 * 60 * 60 * 1000),
       },
       // Different rater — excluded
       {
         repUserId: "any-rep",
         raterUserId: "rater-other",
-        responsiveness: 4,
-        productKnowledge: 4,
-        followThrough: 4,
-        listeningNeedsFit: 4,
-        trustIntegrity: 4,
+        score: 4,
         createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
       },
     ];

@@ -3,17 +3,14 @@
 // Hard requirements (per spec):
 //   • Caller must be a RATER.
 //   • Connection (caller, target rep) must exist with status ACCEPTED.
-//   • All five 1-5 dimensions are required ints. NO free text.
-//   • takeCallAgain is a required boolean.
+//   • Body shape: { repUserId, comment?, answers: [{ questionKey, score: 1-5 }] }
+//   • Every question in the rep's industry's QuestionSet must be answered.
+//   • Each score is an int 1-5; comment ≤ 500 chars.
 //
 // Optional: if ratingRequestId is supplied, validate it belongs to this
 // (rep, rater) pair, is PENDING, and isn't past expiresAt. If valid, mark
 // the rating with that requestId AND flip the request to COMPLETED in the
 // same transaction.
-//
-// We do NOT enforce "one rating per pair" — repeat ratings are valuable
-// signal (track sentiment over time). Per-pair rate-limiting can come
-// later if it turns into spam.
 
 import {
   ConnectionStatus,
@@ -26,31 +23,26 @@ import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { notifyFavoritesOfRating } from "@/lib/notify-favorites";
 
+interface AnswerInput {
+  questionKey?: unknown;
+  score?: unknown;
+}
+
 interface SubmitBody {
   repUserId?: unknown;
-  responsiveness?: unknown;
-  productKnowledge?: unknown;
-  followThrough?: unknown;
-  listeningNeedsFit?: unknown;
-  trustIntegrity?: unknown;
-  takeCallAgain?: unknown;
-  ratingRequestId?: unknown;
   comment?: unknown;
+  answers?: unknown;
+  ratingRequestId?: unknown;
 }
 
 const COMMENT_MAX = 500;
 
-function asDim(v: unknown): number | null {
+function asScore(v: unknown): number | null {
   if (typeof v !== "number" || !Number.isInteger(v)) return null;
   if (v < 1 || v > 5) return null;
   return v;
 }
 
-/**
- * Validate the optional comment field.
- * Returns { ok: true, value } where value is the trimmed string or null,
- * or { ok: false, error } describing why the input was rejected.
- */
 function asComment(
   v: unknown,
 ): { ok: true; value: string | null } | { ok: false; error: string } {
@@ -75,29 +67,87 @@ export async function POST(req: Request) {
     try {
       body = (await req.json()) as SubmitBody;
     } catch {
-      return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+      return badReq("Invalid JSON body");
     }
 
     const repUserId = typeof body.repUserId === "string" ? body.repUserId : null;
-    const responsiveness    = asDim(body.responsiveness);
-    const productKnowledge  = asDim(body.productKnowledge);
-    const followThrough     = asDim(body.followThrough);
-    const listeningNeedsFit = asDim(body.listeningNeedsFit);
-    const trustIntegrity    = asDim(body.trustIntegrity);
-    const takeCallAgain     = typeof body.takeCallAgain === "boolean" ? body.takeCallAgain : null;
-    const ratingRequestId   = typeof body.ratingRequestId === "string" ? body.ratingRequestId : null;
+    const ratingRequestId = typeof body.ratingRequestId === "string" ? body.ratingRequestId : null;
 
     const commentRes = asComment(body.comment);
     if (!commentRes.ok) return badReq(commentRes.error);
     const comment = commentRes.value;
 
     if (!repUserId) return badReq("repUserId required");
-    if (responsiveness === null) return badReq("responsiveness must be an integer 1-5");
-    if (productKnowledge === null) return badReq("productKnowledge must be an integer 1-5");
-    if (followThrough === null) return badReq("followThrough must be an integer 1-5");
-    if (listeningNeedsFit === null) return badReq("listeningNeedsFit must be an integer 1-5");
-    if (trustIntegrity === null) return badReq("trustIntegrity must be an integer 1-5");
-    if (takeCallAgain === null) return badReq("takeCallAgain (boolean) required");
+    if (!Array.isArray(body.answers) || body.answers.length === 0) {
+      return badReq("answers (non-empty array) required");
+    }
+
+    // Validate each answer entry.
+    const submitted = new Map<string, number>();
+    for (const raw of body.answers as AnswerInput[]) {
+      if (!raw || typeof raw !== "object") return badReq("answer entries must be objects");
+      const key = typeof raw.questionKey === "string" ? raw.questionKey : null;
+      const score = asScore(raw.score);
+      if (!key) return badReq("answer.questionKey required");
+      if (score === null) return badReq(`answer.score for ${key} must be an integer 1-5`);
+      if (submitted.has(key)) return badReq(`duplicate answer for question ${key}`);
+      submitted.set(key, score);
+    }
+
+    // Verify rep exists + has an industry + question set, and load the
+    // questions in one query.
+    const rep = await prisma.user.findUnique({
+      where: { id: repUserId },
+      select: {
+        id: true,
+        role: true,
+        repProfile: {
+          select: {
+            industry: {
+              select: {
+                slug: true,
+                questionSet: {
+                  select: {
+                    id: true,
+                    slug: true,
+                    questions: {
+                      orderBy: { ord: "asc" },
+                      select: { id: true, key: true },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!rep || rep.role !== Role.REP || !rep.repProfile) {
+      return Response.json({ error: "Target rep not found" }, { status: 404 });
+    }
+    const set = rep.repProfile.industry.questionSet;
+    if (!set || set.questions.length === 0) {
+      return Response.json(
+        { error: "This rep's industry has no question set configured" },
+        { status: 409 },
+      );
+    }
+
+    // Check coverage — every question in the set MUST have an answer.
+    const expectedKeys = new Set(set.questions.map((q) => q.key));
+    const missing: string[] = [];
+    for (const key of expectedKeys) {
+      if (!submitted.has(key)) missing.push(key);
+    }
+    if (missing.length > 0) {
+      return badReq(`missing answers for: ${missing.join(", ")}`);
+    }
+    // Reject any extra (unknown) keys.
+    for (const key of submitted.keys()) {
+      if (!expectedKeys.has(key)) {
+        return badReq(`unknown question key: ${key}`);
+      }
+    }
 
     const conn = await prisma.connection.findUnique({
       where: {
@@ -124,79 +174,54 @@ export async function POST(req: Request) {
       const rr = await prisma.ratingRequest.findUnique({
         where: { id: ratingRequestId },
       });
-      if (!rr) {
-        return Response.json({ error: "ratingRequest not found" }, { status: 400 });
-      }
-      if (rr.forRepUserId !== repUserId) {
-        return Response.json(
-          { error: "ratingRequest is for a different rep" },
-          { status: 400 },
-        );
-      }
-      // For ON_BEHALF the target rater is fixed; enforce match.
-      // For ONE_TIME the request may not yet have a toRaterUserId — accept
-      // as long as the current rater is reasonable (we still match toEmail
-      // when present, falling back to toRaterUserId).
+      if (!rr) return badReq("ratingRequest not found");
+      if (rr.forRepUserId !== repUserId) return badReq("ratingRequest is for a different rep");
       if (rr.toRaterUserId && rr.toRaterUserId !== session.user.id) {
-        return Response.json(
-          { error: "ratingRequest is for a different rater" },
-          { status: 400 },
-        );
+        return badReq("ratingRequest is for a different rater");
       }
       if (rr.status !== RatingRequestStatus.PENDING) {
-        return Response.json(
-          { error: `ratingRequest is ${rr.status}` },
-          { status: 400 },
-        );
+        return badReq(`ratingRequest is ${rr.status}`);
       }
       if (rr.expiresAt.getTime() < Date.now()) {
-        return Response.json(
-          { error: "ratingRequest is expired" },
-          { status: 400 },
-        );
+        return badReq("ratingRequest is expired");
       }
       validatedRequestId = rr.id;
     }
 
-    const rating = await prisma.rating.create({
-      data: {
-        connectionId: conn.id,
-        repUserId,
-        raterUserId: session.user.id,
-        responsiveness,
-        productKnowledge,
-        followThrough,
-        listeningNeedsFit,
-        trustIntegrity,
-        takeCallAgain,
-        ratingRequestId: validatedRequestId,
-        comment,
-      },
-    });
-
-    if (validatedRequestId) {
-      await prisma.ratingRequest.update({
-        where: { id: validatedRequestId },
+    // Create rating + answers + (optionally) flip the request, atomically.
+    const rating = await prisma.$transaction(async (tx) => {
+      const created = await tx.rating.create({
         data: {
-          status: RatingRequestStatus.COMPLETED,
-          completedAt: new Date(),
-          // Backfill toRaterUserId for ONE_TIME requests so downstream queries
-          // can find them by rater id.
-          toRaterUserId: session.user.id,
+          connectionId: conn.id,
+          repUserId,
+          raterUserId: session.user.id,
+          ratingRequestId: validatedRequestId,
+          comment,
+          answers: {
+            create: set.questions.map((q) => ({
+              questionId: q.id,
+              score: submitted.get(q.key)!,
+            })),
+          },
         },
       });
-    }
+      if (validatedRequestId) {
+        await tx.ratingRequest.update({
+          where: { id: validatedRequestId },
+          data: {
+            status: RatingRequestStatus.COMPLETED,
+            completedAt: new Date(),
+            toRaterUserId: session.user.id,
+          },
+        });
+      }
+      return created;
+    });
 
-    // Fan out to anyone who's favorited this rep. Fire-and-forget — failures
-    // here MUST NOT fail the rating create. We compute the overall score
-    // from the just-submitted dimensions so we don't need to re-aggregate.
-    const overall =
-      (responsiveness +
-        productKnowledge +
-        followThrough +
-        listeningNeedsFit +
-        trustIntegrity) /
-      5;
+    // Fan out to anyone who's favorited this rep. Fire-and-forget.
+    let scoreSum = 0;
+    for (const s of submitted.values()) scoreSum += s;
+    const overall = scoreSum / submitted.size;
     void notifyFavoritesOfRating({
       ratingId: rating.id,
       repUserId,

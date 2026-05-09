@@ -58,11 +58,10 @@ type FakeMembership = {
   endedAt: Date | null;
 };
 type FakeRating = {
-  responsiveness: number;
-  productKnowledge: number;
-  followThrough: number;
-  listeningNeedsFit: number;
-  trustIntegrity: number;
+  /** Per-rating mean score (every answer set to this). */
+  score: number;
+  /** Optional per-question overrides — used by the resolution-rate test. */
+  scoreOverrides?: Partial<Record<string, number>>;
   createdAt: Date;
   repUserId: string;
   raterUserId: string;
@@ -132,13 +131,29 @@ vi.mock("@/lib/prisma", () => ({
               ? args.where.repUserId.in
               : args.where.raterUserId.in;
           const isRepScope = "repUserId" in args.where;
-          return dbState.ratings.filter((r) => {
-            const memberId = isRepScope ? r.repUserId : r.raterUserId;
-            return (
-              ids.includes(memberId) &&
-              r.createdAt.getTime() >= args.where.createdAt.gte.getTime()
-            );
-          });
+          return dbState.ratings
+            .filter((r) => {
+              const memberId = isRepScope ? r.repUserId : r.raterUserId;
+              return (
+                ids.includes(memberId) &&
+                r.createdAt.getTime() >= args.where.createdAt.gte.getTime()
+              );
+            })
+            // Mock the prisma `select: { answers: { ... } }` projection.
+            // Each answer carries a question stub for the per-question helpers.
+            .map((r) => {
+              const QKEYS = ["a", "b", "c", "d", "e"];
+              const answers = QKEYS.map((k, i) => ({
+                score: r.scoreOverrides?.[k] ?? r.score,
+                question: { key: k, labelEn: `Q${k.toUpperCase()}`, ord: i },
+              }));
+              return {
+                createdAt: r.createdAt,
+                repUserId: r.repUserId,
+                raterUserId: r.raterUserId,
+                answers,
+              };
+            });
         },
       ),
       count: vi.fn(
@@ -212,18 +227,9 @@ function rating(
   repUserId: string,
   raterUserId: string,
   daysAgo: number,
-  dim: number = 4,
+  score: number = 4,
 ): FakeRating {
-  return {
-    responsiveness: dim,
-    productKnowledge: dim,
-    followThrough: dim,
-    listeningNeedsFit: dim,
-    trustIntegrity: dim,
-    createdAt: recentDate(daysAgo),
-    repUserId,
-    raterUserId,
-  };
+  return { score, createdAt: recentDate(daysAgo), repUserId, raterUserId };
 }
 
 beforeEach(() => {
@@ -373,10 +379,10 @@ describe("GET /api/team/historical (extended fields)", () => {
     ];
     // (rep-A, rater-1): first rating has a 2 (at-risk), second is all 5s within 60d → resolved.
     dbState.ratings = [
-      { ...rating("rep-A", "rater-1", 50), responsiveness: 2 },
+      { ...rating("rep-A", "rater-1", 50), scoreOverrides: { a: 2 } },
       rating("rep-A", "rater-1", 10, 5),
       // (rep-A, rater-2): single at-risk rating, no follow-up → at-risk but unresolved.
-      { ...rating("rep-A", "rater-2", 30), trustIntegrity: 3 },
+      { ...rating("rep-A", "rater-2", 30), scoreOverrides: { e: 3 } },
     ];
 
     const res = await callRoute();

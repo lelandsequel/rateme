@@ -23,7 +23,7 @@
 
 import {
   type RatingForAgg,
-  type RatingDimensions,
+  type PerQuestionAvg,
   type StatusTier,
   aggregateRatings,
 } from "@/lib/aggregates";
@@ -153,26 +153,29 @@ function risk(text: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Dimension helpers
+// Per-question helpers
 // ---------------------------------------------------------------------------
 
-const DIM_LABELS: Array<[keyof RatingDimensions, string]> = [
-  ["responsiveness", "Responsiveness"],
-  ["productKnowledge", "Product knowledge"],
-  ["followThrough", "Follow-through"],
-  ["listeningNeedsFit", "Listening / needs-fit"],
-  ["trustIntegrity", "Trust & integrity"],
-];
-
 function topStrengths(
-  averages: RatingDimensions | null,
+  perQuestion: PerQuestionAvg[] | null,
   n = 3,
 ): Array<[string, number]> {
-  if (!averages) return [];
-  return DIM_LABELS
-    .map(([k, label]) => [label, averages[k]] as [string, number])
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, n);
+  if (!perQuestion) return [];
+  return [...perQuestion]
+    .sort((a, b) => b.avg - a.avg)
+    .slice(0, n)
+    .map((q) => [q.labelEn, q.avg] as [string, number]);
+}
+
+function topWeaknesses(
+  perQuestion: PerQuestionAvg[] | null,
+  n = 3,
+): Array<[string, number]> {
+  if (!perQuestion) return [];
+  return [...perQuestion]
+    .sort((a, b) => a.avg - b.avg)
+    .slice(0, n)
+    .map((q) => [q.labelEn, q.avg] as [string, number]);
 }
 
 function diff(now: number | null, prev: number | null): string {
@@ -200,19 +203,17 @@ export function repHighlight(
   const newCount = agg7.ratingCount;
   const overall7 = agg7.overall;
   const overall30 = agg30.overall;
-  const strengths = topStrengths(agg30.averages, 3);
+  const strengths = topStrengths(agg30.perQuestion, 3);
+  const weaknesses = topWeaknesses(agg30.perQuestion, 3);
 
-  // Risk flag: any dimension below 3 in last 7d
+  // Risk flag: any question averaged below 3 in last 7d
   const flags: string[] = [];
-  if (agg7.averages) {
-    for (const [k, label] of DIM_LABELS) {
-      if (agg7.averages[k] < 3) {
-        flags.push(`${label} averaged ${agg7.averages[k].toFixed(1)} this week`);
+  if (agg7.perQuestion) {
+    for (const q of agg7.perQuestion) {
+      if (q.avg < 3) {
+        flags.push(`${q.labelEn} averaged ${q.avg.toFixed(1)} this week`);
       }
     }
-  }
-  if (agg7.takeCallAgainPct != null && agg7.takeCallAgainPct < 50) {
-    flags.push(`Only ${agg7.takeCallAgainPct}% would buy from you again this week`);
   }
 
   // -------- HTML --------
@@ -230,6 +231,16 @@ export function repHighlight(
           <div style="font-weight:600;margin-bottom:8px;">Top strengths (last 30 days)</div>
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
             ${strengths.map(([label, score]) => statRow(label, score.toFixed(1))).join("")}
+          </table>
+        </div>`
+      : "";
+
+  const weaknessesHtml =
+    weaknesses.length > 0
+      ? `<div style="margin:16px 0;">
+          <div style="font-weight:600;margin-bottom:8px;">Weakest questions (last 30 days)</div>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+            ${weaknesses.map(([label, score]) => statRow(label, score.toFixed(1))).join("")}
           </table>
         </div>`
       : "";
@@ -253,8 +264,9 @@ export function repHighlight(
     ${p("A quick performance summary plus anything that needs your attention.", { muted: true })}
     ${summaryHtml}
     ${strengthsHtml}
+    ${weaknessesHtml}
     ${flagsHtml}
-    ${p("Suggested next step: focus on the lowest-scoring dimension above and aim to add at least one new rated interaction this week.", { muted: true })}`;
+    ${p("Suggested next step: focus on the lowest-scoring question above and aim to add at least one new rated interaction this week.", { muted: true })}`;
 
   const html = shell(inner, `${newCount} new rating(s) this week.`);
 
@@ -282,13 +294,20 @@ export function repHighlight(
       lines.push(`  - ${label}: ${score.toFixed(1)}`);
     }
   }
+  if (weaknesses.length > 0) {
+    lines.push("");
+    lines.push("Weakest questions (last 30 days):");
+    for (const [label, score] of weaknesses) {
+      lines.push(`  - ${label}: ${score.toFixed(1)}`);
+    }
+  }
   if (flags.length > 0) {
     lines.push("");
     lines.push("Risk flags:");
     for (const f of flags) lines.push(`  ! ${f}`);
   }
   lines.push("");
-  lines.push("Suggested next step: focus on the lowest-scoring dimension above");
+  lines.push("Suggested next step: focus on the lowest-scoring question above");
   lines.push("and aim to add at least one new rated interaction this week.");
   lines.push("");
   lines.push("— RateMyRep");

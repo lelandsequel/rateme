@@ -2,11 +2,16 @@
 //
 // Pure-functional. The API route hydrates ratings + memberships then calls
 // into here. "Now" is injectable for testability.
+//
+// Phase 9 schema rewrite: ratings carry dynamic per-question answers
+// (`answers: Array<{ score, question: { ... } }>`). Per-rating "overall"
+// is the mean of that rating's answer scores; bucket overall is the mean
+// across the bucket's per-rating means.
 
 export interface MonthlyBucket {
   /** First day of the month (UTC midnight). */
   monthStart: Date;
-  /** Mean of (mean of 5 dims) across all ratings in the bucket. Null if empty. */
+  /** Mean of per-rating means within the bucket. Null if empty. */
   avgOverall: number | null;
   ratingCount: number;
 }
@@ -22,23 +27,16 @@ export interface MemberDelta {
   deltaPct: number | null;
 }
 
-interface DimRow {
-  responsiveness: number;
-  productKnowledge: number;
-  followThrough: number;
-  listeningNeedsFit: number;
-  trustIntegrity: number;
+interface AnswersRow {
+  answers: ReadonlyArray<{ score: number }>;
   createdAt: Date;
 }
 
-function overall(r: DimRow): number {
-  return (
-    r.responsiveness +
-    r.productKnowledge +
-    r.followThrough +
-    r.listeningNeedsFit +
-    r.trustIntegrity
-  ) / 5;
+function ratingMean(r: AnswersRow): number {
+  if (r.answers.length === 0) return 0;
+  let sum = 0;
+  for (const a of r.answers) sum += a.score;
+  return sum / r.answers.length;
 }
 
 function round1(x: number): number {
@@ -55,10 +53,9 @@ function addMonths(d: Date, n: number): Date {
 
 /**
  * Build N monthly buckets ending with the current month, ordered oldest →
- * newest. Each bucket holds avgOverall (mean of 5 dims, mean over all
- * ratings in the bucket) and ratingCount.
+ * newest. Each bucket holds avgOverall (mean of per-rating means) and ratingCount.
  */
-export function monthlyTeamAggregates<R extends DimRow>(
+export function monthlyTeamAggregates<R extends AnswersRow>(
   ratings: ReadonlyArray<R>,
   monthsBack: number = 12,
   now: Date = new Date(),
@@ -76,13 +73,14 @@ export function monthlyTeamAggregates<R extends DimRow>(
   }
 
   for (const r of ratings) {
+    if (r.answers.length === 0) continue;
     const m = startOfMonthUTC(new Date(r.createdAt));
     if (m < oldestMonth || m > currentMonth) continue;
     const idx =
       (m.getUTCFullYear() - oldestMonth.getUTCFullYear()) * 12 +
       (m.getUTCMonth() - oldestMonth.getUTCMonth());
     if (idx < 0 || idx >= monthsBack) continue;
-    buckets[idx].sum += overall(r);
+    buckets[idx].sum += ratingMean(r);
     buckets[idx].count++;
   }
 
@@ -98,7 +96,7 @@ export function monthlyTeamAggregates<R extends DimRow>(
  * carries name + this-month + last-month + absolute delta + percent delta.
  * Members with no ratings in either window still appear (with nulls).
  */
-export function memberMonthlyDeltas<R extends DimRow & { memberId: string }>(
+export function memberMonthlyDeltas<R extends AnswersRow & { memberId: string }>(
   ratingsWithMember: ReadonlyArray<R>,
   members: ReadonlyArray<{ id: string; name: string }>,
   now: Date = new Date(),
@@ -111,9 +109,10 @@ export function memberMonthlyDeltas<R extends DimRow & { memberId: string }>(
     let n = 0;
     for (const r of ratingsWithMember) {
       if (r.memberId !== memberId) continue;
+      if (r.answers.length === 0) continue;
       const t = new Date(r.createdAt);
       if (t < fromInclusive || t >= toExclusive) continue;
-      sum += overall(r);
+      sum += ratingMean(r);
       n++;
     }
     return n === 0 ? null : round1(sum / n);

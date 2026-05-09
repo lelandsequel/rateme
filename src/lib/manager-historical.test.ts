@@ -4,21 +4,15 @@ import {
   memberMonthlyDeltas,
 } from "./manager-historical";
 
-function r(yyyymm: string, dims = 4): {
-  responsiveness: number;
-  productKnowledge: number;
-  followThrough: number;
-  listeningNeedsFit: number;
-  trustIntegrity: number;
+// Build an answers-row at a given yyyy-mm and per-rating-mean score.
+function r(yyyymm: string, mean = 4): {
+  answers: Array<{ score: number }>;
   createdAt: Date;
 } {
+  // 5 answers all set to `mean` so the per-rating mean comes out to `mean`.
   return {
-    responsiveness: dims,
-    productKnowledge: dims,
-    followThrough: dims,
-    listeningNeedsFit: dims,
-    trustIntegrity: dims,
     createdAt: new Date(`${yyyymm}-15T12:00:00Z`),
+    answers: Array.from({ length: 5 }, () => ({ score: mean })),
   };
 }
 

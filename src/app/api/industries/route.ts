@@ -6,12 +6,12 @@
 import { handle } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { HAS_DB } from "@/lib/env";
-import { INDUSTRIES_V1 } from "@/lib/industries";
+import { INDUSTRIES_V2 } from "@/lib/industries";
 
 export async function GET() {
   return handle(async () => {
     if (!HAS_DB) {
-      return { industries: INDUSTRIES_V1 };
+      return { industries: INDUSTRIES_V2 };
     }
     const rows = await prisma.industry.findMany({
       orderBy: { name: "asc" },

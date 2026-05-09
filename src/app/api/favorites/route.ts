@@ -106,13 +106,13 @@ export async function GET() {
             },
             ratingsReceived: {
               select: {
-                responsiveness: true,
-                productKnowledge: true,
-                followThrough: true,
-                listeningNeedsFit: true,
-                trustIntegrity: true,
-                takeCallAgain: true,
                 createdAt: true,
+                answers: {
+                  select: {
+                    score: true,
+                    question: { select: { key: true, labelEn: true, ord: true } },
+                  },
+                },
               },
             },
           },
@@ -140,9 +140,9 @@ export async function GET() {
             aggregates: {
               status: agg.status,
               overall: agg.overall,
+              overall10: agg.overall10,
               ratingCount: agg.ratingCount,
               ratingsThisYear: agg.ratingsThisYear,
-              takeCallAgainPct: agg.takeCallAgainPct,
             },
           };
         }),
